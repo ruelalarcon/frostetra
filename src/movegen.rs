@@ -13,7 +13,8 @@ pub fn find_moves(board: &Board, piece: Piece) -> Vec<(Placement, u32)> {
     let mut locks = Vec::with_capacity(64);
     let collision_map = CollisionMaps::new(board, piece);
 
-    let fast_mode = board.cols.iter().all(|&c| c.leading_zeros() > 64 - 16);
+    // let fast_mode = board.cols.iter().all(|&c| c.leading_zeros() > 64 - 16);
+    let fast_mode = true; // For environments where sonic drops and partial drops are mutually exclusive
     if fast_mode {
         for &rotation in &[
             Rotation::North,
