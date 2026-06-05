@@ -45,15 +45,15 @@ impl<V, S: BuildHasher> StateMap<V, S> {
         &self.buckets[(k >> SHARD_INDEX_SHIFT) as usize % SHARDS]
     }
 
-    pub fn get_raw(&self, k: u64) -> Option<MappedRwLockReadGuard<V>> {
+    pub fn get_raw(&self, k: u64) -> Option<MappedRwLockReadGuard<'_, V>> {
         RwLockReadGuard::try_map(self.bucket(k).read(), |shard| shard.get(&k)).ok()
     }
 
-    pub fn get(&self, k: &GameState) -> Option<MappedRwLockReadGuard<V>> {
+    pub fn get(&self, k: &GameState) -> Option<MappedRwLockReadGuard<'_, V>> {
         self.get_raw(self.index(k))
     }
 
-    pub fn get_raw_mut(&self, k: u64) -> Option<MappedRwLockWriteGuard<V>> {
+    pub fn get_raw_mut(&self, k: u64) -> Option<MappedRwLockWriteGuard<'_, V>> {
         RwLockWriteGuard::try_map(self.bucket(k).write(), |shard| shard.get_mut(&k)).ok()
     }
 
@@ -61,7 +61,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
         &self,
         k: u64,
         f: impl FnOnce() -> V,
-    ) -> MappedRwLockWriteGuard<V> {
+    ) -> MappedRwLockWriteGuard<'_, V> {
         RwLockWriteGuard::map(self.bucket(k).write(), |shard| {
             shard.entry(k).or_insert_with(f)
         })
@@ -71,7 +71,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
         &self,
         k: &GameState,
         f: impl FnOnce() -> V,
-    ) -> MappedRwLockWriteGuard<V> {
+    ) -> MappedRwLockWriteGuard<'_, V> {
         self.get_raw_or_insert_with(self.index(k), f)
     }
     pub fn map_values<T>(self, f: impl Fn(V) -> T) -> StateMap<T, S> {

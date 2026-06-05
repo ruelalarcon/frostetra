@@ -8,6 +8,10 @@ license = "MIT OR Apache-2.0"
 [lib]
 crate-type = ["rlib", "cdylib"]
 
+[[bin]]
+name = "cold-clear-2"
+path = "src/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

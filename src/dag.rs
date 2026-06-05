@@ -122,7 +122,7 @@ impl<E: Evaluation> Dag<E> {
         self.top_layer.kind.suggest(&self.root)
     }
 
-    pub fn select(&self, speculate: bool, exploration: f64) -> Option<Selection<E>> {
+    pub fn select(&self, speculate: bool, exploration: f64) -> Option<Selection<'_, E>> {
         puffin::profile_function!();
         let mut layers = vec![&*self.top_layer];
         let mut game_state = self.root;

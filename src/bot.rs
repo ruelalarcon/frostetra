@@ -51,6 +51,7 @@ trait Mode {
     fn do_work(&self, options: &BotOptions) -> Statistics;
 }
 
+#[allow(dead_code)]
 enum ModeSwitch {
     Freestyle,
 }

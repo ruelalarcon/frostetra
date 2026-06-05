@@ -9,6 +9,7 @@ use structopt::StructOpt;
 struct CliOptions {
     /// Enable puffin profiler (requires building with feature `puffin_http`)
     #[structopt(long)]
+    #[allow(dead_code)]
     profile: bool,
 
     /// Path to JSON file containing the bot configuration
