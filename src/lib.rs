@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 
-use bot::{BotConfig, BotOptions};
+use bot::{BotConfig, BotOptions, SevenBagTracker};
 use enumset::EnumSet;
 use futures::prelude::*;
 use tbp::Randomizer;
@@ -42,6 +42,7 @@ pub async fn run(
 
     let mut waiting_on_first_piece = None;
     let mut game_rules = GameRules::default();
+    let mut randomizer = Randomizer::default();
 
     while let Some(msg) = incoming.next().await {
         match msg {
@@ -49,7 +50,7 @@ pub async fn run(
                 if start.hold.is_none() && start.queue.is_empty() {
                     waiting_on_first_piece = Some(start);
                 } else {
-                    bot.start(create_bot(start, game_rules, config.clone()));
+                    bot.start(create_bot(start, game_rules, randomizer, config.clone()));
                 }
             }
             FrontendMessage::Stop => {
@@ -70,23 +71,19 @@ pub async fn run(
             }
             FrontendMessage::NewPiece { piece } => {
                 if let Some(mut start) = waiting_on_first_piece.take() {
-                    if let Randomizer::SevenBag { bag_state } = &mut start.randomizer {
-                        if bag_state.is_empty() {
-                            *bag_state = EnumSet::all();
-                        }
-                        bag_state.remove(piece);
-                    }
                     start.queue.push(piece);
-                    bot.start(create_bot(start, game_rules, config.clone()));
+                    bot.start(create_bot(start, game_rules, randomizer, config.clone()));
                 } else {
                     bot.new_piece(piece);
                 }
             }
             FrontendMessage::Rules {
+                randomizer: rules_randomizer,
                 kickset,
                 rot180,
                 sonic_drop,
             } => {
+                randomizer = rules_randomizer;
                 game_rules = GameRules {
                     kickset,
                     rot180,
@@ -100,39 +97,41 @@ pub async fn run(
     }
 }
 
-fn create_bot(mut start: tbp::Start, rules: GameRules, config: Arc<BotConfig>) -> Bot {
+fn create_bot(
+    mut start: tbp::Start,
+    rules: GameRules,
+    randomizer: Randomizer,
+    config: Arc<BotConfig>,
+) -> Bot {
     let reserve = start.hold.unwrap_or_else(|| start.queue.remove(0));
 
-    let speculate = matches!(start.randomizer, Randomizer::SevenBag { .. });
-    let bag = match start.randomizer {
-        Randomizer::Unknown => EnumSet::all(),
-        Randomizer::SevenBag { mut bag_state } => {
-            for &p in start.queue.iter().rev() {
-                if bag_state == EnumSet::all() {
-                    bag_state = EnumSet::empty();
-                }
-                bag_state.insert(p);
-            }
-            bag_state
+    let bag_tracker = match randomizer {
+        Randomizer::SevenBag => {
+            let mut observed = Vec::with_capacity(start.queue.len() + 1);
+            observed.push(reserve);
+            observed.extend_from_slice(&start.queue);
+            Some(SevenBagTracker::from_observed(&observed))
         }
+        Randomizer::Unknown => None,
     };
 
     let state = GameState {
         reserve,
         back_to_back: start.back_to_back,
         combo: start.combo.try_into().unwrap_or(255),
-        bag,
+        bag: EnumSet::all(),
         board: start.board.into(),
     };
 
     Bot::new(
         BotOptions {
-            speculate,
+            speculate: false,
             rules,
             config,
         },
         state,
         &start.queue,
+        bag_tracker,
     )
 }
 

@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use enum_dispatch::enum_dispatch;
+use enumset::EnumSet;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +18,9 @@ pub struct Bot {
     current: GameState,
     queue: VecDeque<Piece>,
     mode: ModeEnum,
+    bag_tracker: Option<SevenBagTracker>,
+    consumed_pieces: usize,
+    logged_speculation_start: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -59,27 +63,55 @@ enum ModeSwitch {
 }
 
 impl Bot {
-    pub fn new(options: BotOptions, root: GameState, queue: &[Piece]) -> Self {
+    pub fn new(
+        mut options: BotOptions,
+        mut root: GameState,
+        queue: &[Piece],
+        bag_tracker: Option<SevenBagTracker>,
+    ) -> Self {
+        let mut logged_speculation_start = false;
+        if let Some(tracker) = &bag_tracker {
+            if let Some(bag) = tracker.confident_bag_after(1) {
+                root.bag = bag;
+                options.speculate = true;
+                eprintln!(
+                    "[info] seven-bag tracker confident; starting speculation with bag {:?}",
+                    bag
+                );
+                logged_speculation_start = true;
+            }
+        }
+
         Bot {
             current: root,
             queue: queue.iter().copied().collect(),
             mode: Freestyle::new(&options, root, queue).into(),
             options,
+            bag_tracker,
+            consumed_pieces: 1,
+            logged_speculation_start,
         }
     }
 
     pub fn advance(&mut self, mv: Placement) {
         puffin::profile_function!();
         self.current.advance(self.queue.pop_front().unwrap(), mv);
+        self.consumed_pieces += 1;
         if let Some(to) = self.mode.advance(&self.options, mv) {
             self.switch(to);
         };
+        self.maybe_start_speculation();
     }
 
     pub fn new_piece(&mut self, piece: Piece) {
         puffin::profile_function!();
         self.queue.push_back(piece);
-        self.mode.new_piece(&self.options, piece);
+        if let Some(tracker) = &mut self.bag_tracker {
+            tracker.observe(piece);
+        }
+        if !self.maybe_start_speculation() {
+            self.mode.new_piece(&self.options, piece);
+        }
     }
 
     pub fn suggest(&self) -> Vec<Placement> {
@@ -100,6 +132,106 @@ impl Bot {
                     Freestyle::new(&self.options, self.current, self.queue.make_contiguous()).into()
             }
         }
+    }
+
+    fn maybe_start_speculation(&mut self) -> bool {
+        if self.options.speculate {
+            return false;
+        }
+
+        let Some(tracker) = &self.bag_tracker else {
+            return false;
+        };
+        let Some(bag) = tracker.confident_bag_after(self.consumed_pieces) else {
+            return false;
+        };
+
+        self.current.bag = bag;
+        self.options.speculate = true;
+        if !self.logged_speculation_start {
+            eprintln!(
+                "[info] seven-bag tracker confident; starting speculation with bag {:?}",
+                bag
+            );
+            self.logged_speculation_start = true;
+        }
+        self.mode =
+            Freestyle::new(&self.options, self.current, self.queue.make_contiguous()).into();
+        true
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SevenBagTracker {
+    candidates: Vec<Vec<EnumSet<Piece>>>,
+}
+
+impl SevenBagTracker {
+    pub fn from_observed(queue: &[Piece]) -> Self {
+        let mut tracker = SevenBagTracker {
+            candidates: Vec::new(),
+        };
+        for &piece in queue {
+            tracker.observe(piece);
+        }
+        tracker
+    }
+
+    pub fn observe(&mut self, piece: Piece) {
+        if self.candidates.is_empty() {
+            self.candidates = all_initial_bags_containing(piece)
+                .into_iter()
+                .map(|bag| vec![consume_from_bag(bag, piece)])
+                .collect();
+            return;
+        }
+
+        self.candidates = self
+            .candidates
+            .drain(..)
+            .filter_map(|mut path| {
+                let bag = *path.last().expect("candidate paths are never empty");
+                bag.contains(piece).then(|| {
+                    path.push(consume_from_bag(bag, piece));
+                    path
+                })
+            })
+            .collect();
+    }
+
+    pub fn confident_bag_after(&self, pieces_consumed: usize) -> Option<EnumSet<Piece>> {
+        let index = pieces_consumed.checked_sub(1)?;
+        let mut bags = self
+            .candidates
+            .iter()
+            .filter_map(|path| path.get(index))
+            .copied();
+        let first = bags.next()?;
+        bags.all(|bag| bag == first).then_some(first)
+    }
+}
+
+fn all_initial_bags_containing(piece: Piece) -> Vec<EnumSet<Piece>> {
+    let others: Vec<_> = (EnumSet::all() - EnumSet::only(piece)).iter().collect();
+    let mut bags = Vec::with_capacity(64);
+    for mask in 0..(1 << others.len()) {
+        let mut bag = EnumSet::only(piece);
+        for (i, other) in others.iter().copied().enumerate() {
+            if mask & (1 << i) != 0 {
+                bag.insert(other);
+            }
+        }
+        bags.push(bag);
+    }
+    bags
+}
+
+fn consume_from_bag(mut bag: EnumSet<Piece>, piece: Piece) -> EnumSet<Piece> {
+    bag.remove(piece);
+    if bag.is_empty() {
+        EnumSet::all()
+    } else {
+        bag
     }
 }
 

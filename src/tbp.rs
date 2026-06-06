@@ -1,4 +1,3 @@
-use enumset::{EnumSet, EnumSetType};
 use serde::{Deserialize, Serialize};
 
 use crate::data::{Board, Piece, Placement};
@@ -14,6 +13,8 @@ fn default_rot180() -> bool {
 #[serde(tag = "type")]
 pub enum FrontendMessage {
     Rules {
+        #[serde(default)]
+        randomizer: Randomizer,
         #[serde(default)]
         kickset: Kickset,
         #[serde(default = "default_rot180")]
@@ -60,18 +61,12 @@ pub struct Start {
     pub hold: Option<Piece>,
     pub combo: u32,
     pub back_to_back: bool,
-    #[serde(default)]
-    pub randomizer: Randomizer,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[serde(tag = "type")]
 pub enum Randomizer {
-    SevenBag {
-        #[serde(deserialize_with = "collect_enumset")]
-        bag_state: EnumSet<Piece>,
-    },
+    SevenBag,
     #[serde(other)]
     Unknown,
 }
@@ -101,12 +96,4 @@ impl From<Vec<[Option<char>; 10]>> for Board {
         }
         Board { cols }
     }
-}
-
-fn collect_enumset<'de, D, T>(de: D) -> Result<EnumSet<T>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: EnumSetType + Deserialize<'de>,
-{
-    Ok(Vec::<T>::deserialize(de)?.into_iter().collect())
 }
