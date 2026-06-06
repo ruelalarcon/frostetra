@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::data::{Board, Piece, Placement};
 pub use crate::movegen::Kickset;
+pub use crate::rules::SonicDrop;
+
+fn default_rot180() -> bool {
+    true
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -11,6 +16,10 @@ pub enum FrontendMessage {
     Rules {
         #[serde(default)]
         kickset: Kickset,
+        #[serde(default = "default_rot180")]
+        rot180: bool,
+        #[serde(default)]
+        sonic_drop: SonicDrop,
     },
     Start(Start),
     Play {
@@ -41,7 +50,7 @@ pub enum BotMessage {
     Suggestion {
         moves: Vec<Placement>,
         move_info: MoveInfo,
-    }
+    },
 }
 
 #[derive(Deserialize)]
@@ -72,7 +81,6 @@ impl Default for Randomizer {
         Self::Unknown
     }
 }
-
 
 #[derive(Serialize)]
 pub struct MoveInfo {

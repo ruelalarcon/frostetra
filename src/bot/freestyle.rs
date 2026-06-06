@@ -6,9 +6,9 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use super::{BotOptions, Mode, ModeSwitch, Statistics};
-use crate::search::{ChildData, Dag, Evaluation};
 use crate::data::*;
 use crate::movegen::find_moves;
+use crate::search::{ChildData, Dag, Evaluation};
 
 pub struct Freestyle {
     dag: Dag<Eval>,
@@ -55,7 +55,7 @@ impl Mode for Freestyle {
             {
                 puffin::profile_scope!("movegen");
                 for piece in next_possibilities | state.reserve {
-                    moves[piece] = find_moves(&state.board, piece);
+                    moves[piece] = find_moves(&state.board, piece, &options.rules);
                 }
             }
 

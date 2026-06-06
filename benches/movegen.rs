@@ -1,5 +1,6 @@
 use cold_clear_2::data::{Board, Piece};
 use cold_clear_2::movegen::find_moves;
+use cold_clear_2::rules::GameRules;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 const PIECES: [Piece; 7] = [
@@ -13,9 +14,12 @@ const PIECES: [Piece; 7] = [
 ];
 
 fn bench_movegen(c: &mut Criterion, name: &str, board: Board) {
+    let rules = GameRules::default();
     let mut group = c.benchmark_group(name);
     for p in PIECES {
-        group.bench_function(format!("{:?}", p), |b| b.iter(|| find_moves(&board, p)));
+        group.bench_function(format!("{:?}", p), |b| {
+            b.iter(|| find_moves(&board, p, &rules))
+        });
     }
 }
 

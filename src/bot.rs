@@ -6,6 +6,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::data::{GameState, Piece, Placement};
+use crate::rules::GameRules;
 
 mod freestyle;
 
@@ -35,6 +36,7 @@ impl Default for BotConfig {
 #[derive(Debug)]
 pub struct BotOptions {
     pub speculate: bool,
+    pub rules: GameRules,
     pub config: Arc<BotConfig>,
 }
 

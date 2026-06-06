@@ -4,11 +4,12 @@ use std::collections::BinaryHeap;
 use ahash::AHashMap;
 
 use crate::data::*;
+use crate::rules::{GameRules, SonicDrop};
 
 pub mod kicks;
 pub use kicks::Kickset;
 
-pub fn find_moves(board: &Board, piece: Piece) -> Vec<(Placement, u32)> {
+pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placement, u32)> {
     puffin::profile_function!();
     let mut queue = BinaryHeap::new();
     let mut values = AHashMap::new();
@@ -16,8 +17,7 @@ pub fn find_moves(board: &Board, piece: Piece) -> Vec<(Placement, u32)> {
     let mut locks = Vec::with_capacity(64);
     let collision_map = CollisionMaps::new(board, piece);
 
-    // let fast_mode = board.cols.iter().all(|&c| c.leading_zeros() > 64 - 16);
-    let fast_mode = true; // For environments where sonic drops and partial drops are mutually exclusive
+    let fast_mode = rules.sonic_drop == SonicDrop::Only;
     if fast_mode {
         for &rotation in &[
             Rotation::North,
@@ -56,6 +56,11 @@ pub fn find_moves(board: &Board, piece: Piece) -> Vec<(Placement, u32)> {
                 }
                 if let Some(mv) = rotate_ccw(location, &collision_map, board) {
                     update_position(mv, distance as u32);
+                }
+                if rules.rot180 {
+                    if let Some(mv) = rotate_180(location, &collision_map, board) {
+                        update_position(mv, distance as u32);
+                    }
                 }
 
                 if location.canonical_form() == location {
@@ -129,6 +134,11 @@ pub fn find_moves(board: &Board, piece: Piece) -> Vec<(Placement, u32)> {
         if let Some(mv) = rotate_ccw(expand.mv.location, &collision_map, board) {
             update_position(mv, expand.soft_drops);
         }
+        if rules.rot180 {
+            if let Some(mv) = rotate_180(expand.mv.location, &collision_map, board) {
+                update_position(mv, expand.soft_drops);
+            }
+        }
     }
 
     locks.extend(underground_locks.into_iter());
@@ -175,8 +185,7 @@ fn rotate_cw(
     if from.piece == Piece::O {
         return None;
     }
-    const KICKS: [[[(i8, i8); 5]; 4]; 7] =
-        piece_lut!(piece => rotation_lut!(rotation => kicks::kicks(piece, rotation, rotation.cw())));
+    const KICKS: [[[(i8, i8); 5]; 4]; 7] = piece_lut!(piece => rotation_lut!(rotation => kicks::kicks(piece, rotation, rotation.cw())));
     let unkicked = PieceLocation {
         rotation: from.rotation.cw(),
         ..from
@@ -199,8 +208,7 @@ fn rotate_ccw(
     if from.piece == Piece::O {
         return None;
     }
-    const KICKS: [[[(i8, i8); 5]; 4]; 7] =
-        piece_lut!(piece => rotation_lut!(rotation => kicks::kicks(piece, rotation, rotation.ccw())));
+    const KICKS: [[[(i8, i8); 5]; 4]; 7] = piece_lut!(piece => rotation_lut!(rotation => kicks::kicks(piece, rotation, rotation.ccw())));
     let unkicked = PieceLocation {
         rotation: from.rotation.ccw(),
         ..from
@@ -212,6 +220,27 @@ fn rotate_ccw(
         KICKS[from.piece as usize][from.rotation as usize]
             .iter()
             .copied(),
+    )
+}
+
+fn rotate_180(
+    from: PieceLocation,
+    collision_map: &CollisionMaps,
+    board: &Board,
+) -> Option<Placement> {
+    if from.piece == Piece::O {
+        return None;
+    }
+    const KICKS: [[(i8, i8); 6]; 4] = rotation_lut!(rotation => kicks::kicks_180(rotation));
+    let unkicked = PieceLocation {
+        rotation: from.rotation.flip(),
+        ..from
+    };
+    rotate(
+        unkicked,
+        collision_map,
+        board,
+        KICKS[from.rotation as usize].iter().copied(),
     )
 }
 

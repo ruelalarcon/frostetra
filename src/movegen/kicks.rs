@@ -43,3 +43,13 @@ pub const fn kicks(piece: Piece, from: Rotation, to: Rotation) -> [(i8, i8); 5] 
     }
     result
 }
+
+// SRS+ 180 kick table (Tetr.io / guideline-adjacent), 6 kick offsets per rotation.
+pub const fn kicks_180(from: Rotation) -> [(i8, i8); 6] {
+    match from {
+        Rotation::North => [(0, 0), (1, 0), (-1, 0), (2, 0), (-2, 0), (0, 1)],
+        Rotation::East => [(0, 0), (0, 1), (0, -1), (0, 2), (0, -2), (-1, 0)],
+        Rotation::South => [(0, 0), (-1, 0), (1, 0), (-2, 0), (2, 0), (0, -1)],
+        Rotation::West => [(0, 0), (0, -1), (0, 1), (0, -2), (0, 2), (1, 0)],
+    }
+}

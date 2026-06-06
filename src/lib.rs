@@ -4,10 +4,11 @@ use std::sync::Arc;
 use bot::{BotConfig, BotOptions};
 use enumset::EnumSet;
 use futures::prelude::*;
-use tbp::{Kickset, Randomizer};
+use tbp::Randomizer;
 
 use crate::bot::Bot;
 use crate::data::GameState;
+use crate::rules::GameRules;
 use crate::sync::BotSyncronizer;
 use crate::tbp::{BotMessage, FrontendMessage};
 
@@ -16,6 +17,7 @@ mod tbp;
 #[macro_use]
 pub mod data;
 pub mod movegen;
+pub mod rules;
 mod search;
 mod sync;
 
@@ -39,7 +41,7 @@ pub async fn run(
     spawn_workers(&bot);
 
     let mut waiting_on_first_piece = None;
-    let mut kickset = Kickset::default();
+    let mut game_rules = GameRules::default();
 
     while let Some(msg) = incoming.next().await {
         match msg {
@@ -47,7 +49,7 @@ pub async fn run(
                 if start.hold.is_none() && start.queue.is_empty() {
                     waiting_on_first_piece = Some(start);
                 } else {
-                    bot.start(create_bot(start, kickset, config.clone()));
+                    bot.start(create_bot(start, game_rules, config.clone()));
                 }
             }
             FrontendMessage::Stop => {
@@ -75,13 +77,21 @@ pub async fn run(
                         bag_state.remove(piece);
                     }
                     start.queue.push(piece);
-                    bot.start(create_bot(start, kickset, config.clone()));
+                    bot.start(create_bot(start, game_rules, config.clone()));
                 } else {
                     bot.new_piece(piece);
                 }
             }
-            FrontendMessage::Rules { kickset: ks } => {
-                kickset = ks;
+            FrontendMessage::Rules {
+                kickset,
+                rot180,
+                sonic_drop,
+            } => {
+                game_rules = GameRules {
+                    kickset,
+                    rot180,
+                    sonic_drop,
+                };
                 outgoing.send(BotMessage::Ready).await.unwrap();
             }
             FrontendMessage::Quit => break,
@@ -90,7 +100,7 @@ pub async fn run(
     }
 }
 
-fn create_bot(mut start: tbp::Start, _kickset: Kickset, config: Arc<BotConfig>) -> Bot {
+fn create_bot(mut start: tbp::Start, rules: GameRules, config: Arc<BotConfig>) -> Bot {
     let reserve = start.hold.unwrap_or_else(|| start.queue.remove(0));
 
     let speculate = matches!(start.randomizer, Randomizer::SevenBag { .. });
@@ -115,7 +125,15 @@ fn create_bot(mut start: tbp::Start, _kickset: Kickset, config: Arc<BotConfig>) 
         board: start.board.into(),
     };
 
-    Bot::new(BotOptions { speculate, config }, state, &start.queue)
+    Bot::new(
+        BotOptions {
+            speculate,
+            rules,
+            config,
+        },
+        state,
+        &start.queue,
+    )
 }
 
 fn spawn_workers(bot: &Arc<BotSyncronizer>) {
