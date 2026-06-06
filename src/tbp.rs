@@ -7,7 +7,10 @@ use crate::data::{Board, Piece, Placement};
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum FrontendMessage {
-    Rules,
+    Rules {
+        #[serde(default)]
+        kickset: Kickset,
+    },
     Start(Start),
     Play {
         #[serde(rename = "move")]
@@ -67,6 +70,13 @@ impl Default for Randomizer {
     fn default() -> Self {
         Self::Unknown
     }
+}
+
+#[derive(Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Kickset {
+    #[default]
+    Srs,
 }
 
 #[derive(Serialize)]

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bot::{BotConfig, BotOptions};
 use enumset::EnumSet;
 use futures::prelude::*;
-use tbp::Randomizer;
+use tbp::{Kickset, Randomizer};
 
 use crate::bot::Bot;
 use crate::data::GameState;
@@ -40,6 +40,7 @@ pub async fn run(
     spawn_workers(&bot);
 
     let mut waiting_on_first_piece = None;
+    let mut kickset = Kickset::default();
 
     while let Some(msg) = incoming.next().await {
         match msg {
@@ -47,7 +48,7 @@ pub async fn run(
                 if start.hold.is_none() && start.queue.is_empty() {
                     waiting_on_first_piece = Some(start);
                 } else {
-                    bot.start(create_bot(start, config.clone()));
+                    bot.start(create_bot(start, kickset, config.clone()));
                 }
             }
             FrontendMessage::Stop => {
@@ -75,12 +76,13 @@ pub async fn run(
                         bag_state.remove(piece);
                     }
                     start.queue.push(piece);
-                    bot.start(create_bot(start, config.clone()));
+                    bot.start(create_bot(start, kickset, config.clone()));
                 } else {
                     bot.new_piece(piece);
                 }
             }
-            FrontendMessage::Rules => {
+            FrontendMessage::Rules { kickset: ks } => {
+                kickset = ks;
                 outgoing.send(BotMessage::Ready).await.unwrap();
             }
             FrontendMessage::Quit => break,
@@ -89,7 +91,7 @@ pub async fn run(
     }
 }
 
-fn create_bot(mut start: tbp::Start, config: Arc<BotConfig>) -> Bot {
+fn create_bot(mut start: tbp::Start, _kickset: Kickset, config: Arc<BotConfig>) -> Bot {
     let reserve = start.hold.unwrap_or_else(|| start.queue.remove(0));
 
     let speculate = matches!(start.randomizer, Randomizer::SevenBag { .. });
