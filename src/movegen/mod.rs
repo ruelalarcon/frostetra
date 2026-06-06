@@ -231,7 +231,7 @@ fn rotate_180(
     if from.piece == Piece::O {
         return None;
     }
-    const KICKS: [[(i8, i8); 6]; 4] = rotation_lut!(rotation => kicks::kicks_180(rotation));
+    const KICKS: [[(i8, i8); 1]; 4] = rotation_lut!(rotation => kicks::kicks_180(rotation));
     let unkicked = PieceLocation {
         rotation: from.rotation.flip(),
         ..from
