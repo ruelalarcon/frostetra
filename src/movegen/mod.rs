@@ -5,6 +5,9 @@ use ahash::AHashMap;
 
 use crate::data::*;
 
+pub mod kicks;
+pub use kicks::Kickset;
+
 pub fn find_moves(board: &Board, piece: Piece) -> Vec<(Placement, u32)> {
     puffin::profile_function!();
     let mut queue = BinaryHeap::new();
@@ -173,7 +176,7 @@ fn rotate_cw(
         return None;
     }
     const KICKS: [[[(i8, i8); 5]; 4]; 7] =
-        piece_lut!(piece => rotation_lut!(rotation => kicks(piece, rotation, rotation.cw())));
+        piece_lut!(piece => rotation_lut!(rotation => kicks::kicks(piece, rotation, rotation.cw())));
     let unkicked = PieceLocation {
         rotation: from.rotation.cw(),
         ..from
@@ -197,7 +200,7 @@ fn rotate_ccw(
         return None;
     }
     const KICKS: [[[(i8, i8); 5]; 4]; 7] =
-        piece_lut!(piece => rotation_lut!(rotation => kicks(piece, rotation, rotation.ccw())));
+        piece_lut!(piece => rotation_lut!(rotation => kicks::kicks(piece, rotation, rotation.ccw())));
     let unkicked = PieceLocation {
         rotation: from.rotation.ccw(),
         ..from
@@ -210,41 +213,6 @@ fn rotate_ccw(
             .iter()
             .copied(),
     )
-}
-
-const fn offsets(piece: Piece, rotation: Rotation) -> [(i8, i8); 5] {
-    match piece {
-        Piece::O => match rotation {
-            Rotation::North => [(0, 0); 5],
-            Rotation::East => [(0, -1); 5],
-            Rotation::South => [(-1, -1); 5],
-            Rotation::West => [(-1, 0); 5],
-        },
-        Piece::I => match rotation {
-            Rotation::North => [(0, 0), (-1, 0), (2, 0), (-1, 0), (2, 0)],
-            Rotation::East => [(-1, 0), (0, 0), (0, 0), (0, 1), (0, -2)],
-            Rotation::South => [(-1, 1), (1, 1), (-2, 1), (1, 0), (-2, 0)],
-            Rotation::West => [(0, 1), (0, 1), (0, 1), (0, -1), (0, 2)],
-        },
-        _ => match rotation {
-            Rotation::North => [(0, 0); 5],
-            Rotation::East => [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
-            Rotation::South => [(0, 0); 5],
-            Rotation::West => [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
-        },
-    }
-}
-
-const fn kicks(piece: Piece, from: Rotation, to: Rotation) -> [(i8, i8); 5] {
-    let mut kicks = [(0, 0); 5];
-    let from = offsets(piece, from);
-    let to = offsets(piece, to);
-    let mut i = 0;
-    while i < kicks.len() {
-        kicks[i] = (from[i].0 - to[i].0, from[i].1 - to[i].1);
-        i += 1;
-    }
-    kicks
 }
 
 fn rotate(

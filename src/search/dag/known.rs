@@ -5,7 +5,7 @@ use enum_map::EnumMap;
 use rand::prelude::*;
 
 use crate::data::{GameState, Piece, Placement};
-use crate::map::StateMap;
+use crate::search::map::StateMap;
 
 use super::{
     update_child, BackpropUpdate, Child, ChildData, Evaluation, LayerCommon, SelectResult,
@@ -113,8 +113,6 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         puffin::profile_function!();
         let mut childs = Vec::with_capacity(children[self.piece].len());
 
-        // We need to acquire the lock on the parent since the backprop routine needs the children
-        // lists to exist, and they won't if we're still creating them
         let parent_index = self.states.index(&parent_state);
         let mut parent = self.states.get_raw_mut(parent_index).unwrap();
 

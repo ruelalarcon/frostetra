@@ -12,12 +12,11 @@ use crate::sync::BotSyncronizer;
 use crate::tbp::{BotMessage, FrontendMessage};
 
 mod bot;
-mod dag;
 mod tbp;
 #[macro_use]
 pub mod data;
-mod map;
 pub mod movegen;
+mod search;
 mod sync;
 
 pub async fn run(

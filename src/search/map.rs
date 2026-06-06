@@ -74,6 +74,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
     ) -> MappedRwLockWriteGuard<'_, V> {
         self.get_raw_or_insert_with(self.index(k), f)
     }
+
     pub fn map_values<T>(self, f: impl Fn(V) -> T) -> StateMap<T, S> {
         StateMap {
             hasher: self.hasher,

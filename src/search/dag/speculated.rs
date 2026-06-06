@@ -7,7 +7,7 @@ use enumset::EnumSet;
 use rand::prelude::*;
 
 use crate::data::{GameState, Piece, Placement};
-use crate::map::StateMap;
+use crate::search::map::StateMap;
 
 use super::{
     update_child, BackpropUpdate, Child, ChildData, Evaluation, LayerCommon, SelectResult,
@@ -23,7 +23,6 @@ pub(super) struct Node<'bump, E: Evaluation> {
     pub eval: E,
     pub children: Option<PackedChildren<'bump, E>>,
     pub expanding: AtomicBool,
-    // we need this info while backpropagating, but we don't have access to the game state then
     bag: EnumSet<Piece>,
 }
 
@@ -128,8 +127,6 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         let mut childs_data = vec![];
         let mut childs_indices = [0; 8];
 
-        // We need to acquire the lock on the parent since the backprop routine needs the children
-        // lists to exist, and they won't if we're still creating them
         let parent_index = self.states.index(&parent_state);
         let mut parent = self.states.get_raw_mut(parent_index).unwrap();
 

@@ -2,6 +2,7 @@ use enumset::{EnumSet, EnumSetType};
 use serde::{Deserialize, Serialize};
 
 use crate::data::{Board, Piece, Placement};
+pub use crate::movegen::Kickset;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -72,12 +73,6 @@ impl Default for Randomizer {
     }
 }
 
-#[derive(Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum Kickset {
-    #[default]
-    Srs,
-}
 
 #[derive(Serialize)]
 pub struct MoveInfo {

@@ -35,7 +35,7 @@ pub struct ChildData<E: Evaluation> {
 }
 
 #[derive(Default)]
-struct LayerCommon<E: Evaluation> {
+pub(super) struct LayerCommon<E: Evaluation> {
     next_layer: Lazy<Box<LayerCommon<E>>>,
     kind: WithBump<E>,
 }
@@ -54,23 +54,23 @@ enum LayerKind<'bump, E: Evaluation> {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Child<E: Evaluation> {
-    mv: Placement,
-    reward: E::Reward,
-    cached_eval: E,
+pub(super) struct Child<E: Evaluation> {
+    pub mv: Placement,
+    pub reward: E::Reward,
+    pub cached_eval: E,
 }
 
-enum SelectResult {
+pub(super) enum SelectResult {
     Failed,
     Done,
     Advance(Piece, Placement),
 }
 
-struct BackpropUpdate {
-    parent: u64,
-    speculation_piece: Piece,
-    mv: Placement,
-    child: u64,
+pub(super) struct BackpropUpdate {
+    pub parent: u64,
+    pub speculation_piece: Piece,
+    pub mv: Placement,
+    pub child: u64,
 }
 
 impl<E: Evaluation> Dag<E> {
@@ -167,7 +167,11 @@ impl<E: Evaluation> Selection<'_, E> {
     }
 }
 
-fn update_child<E: Evaluation>(list: &mut [Child<E>], placement: Placement, child_eval: E) -> bool {
+pub(super) fn update_child<E: Evaluation>(
+    list: &mut [Child<E>],
+    placement: Placement,
+    child_eval: E,
+) -> bool {
     let mut index = list
         .iter()
         .enumerate()
@@ -177,7 +181,6 @@ fn update_child<E: Evaluation>(list: &mut [Child<E>], placement: Placement, chil
     list[index].cached_eval = child_eval + list[index].reward;
 
     if index > 0 && list[index - 1].cached_eval < list[index].cached_eval {
-        // Shift up until the list is in order
         let hole = list[index];
         while index > 0 && list[index - 1].cached_eval < hole.cached_eval {
             list[index] = list[index - 1];
@@ -185,7 +188,6 @@ fn update_child<E: Evaluation>(list: &mut [Child<E>], placement: Placement, chil
         }
         list[index] = hole;
     } else if index < list.len() - 1 && list[index + 1].cached_eval > list[index].cached_eval {
-        // Shift down until the list is in order
         let hole = list[index];
         while index < list.len() - 1 && list[index + 1].cached_eval > hole.cached_eval {
             list[index] = list[index + 1];

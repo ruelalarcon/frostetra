@@ -6,7 +6,7 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use super::{BotOptions, Mode, ModeSwitch, Statistics};
-use crate::dag::{ChildData, Dag, Evaluation};
+use crate::search::{ChildData, Dag, Evaluation};
 use crate::data::*;
 use crate::movegen::find_moves;
 
