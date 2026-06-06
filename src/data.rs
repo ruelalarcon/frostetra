@@ -300,6 +300,7 @@ impl GameState {
             let hard = cleared_mask.count_ones() == 4 || !matches!(placement.spin, Spin::None);
             back_to_back = hard && self.back_to_back;
             self.back_to_back = hard;
+            self.combo = self.combo.saturating_add(1);
         } else {
             self.combo = 0;
         }
