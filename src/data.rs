@@ -13,7 +13,7 @@ pub struct GameState {
     pub board: Board,
     pub bag: EnumSet<Piece>,
     pub reserve: Piece,
-    pub back_to_back: bool,
+    pub back_to_back: u8,
     pub combo: u8,
 }
 
@@ -38,7 +38,7 @@ pub struct PlacementInfo {
     pub placement: Placement,
     pub lines_cleared: u32,
     pub combo: u32,
-    pub back_to_back: bool,
+    pub back_to_back: u32,
     pub perfect_clear: bool,
 }
 
@@ -294,12 +294,14 @@ impl GameState {
         }
         self.board.place(placement.location);
         let cleared_mask = self.board.line_clears();
-        let mut back_to_back = false;
         if cleared_mask != 0 {
             self.board.remove_lines(cleared_mask);
             let hard = cleared_mask.count_ones() == 4 || !matches!(placement.spin, Spin::None);
-            back_to_back = hard && self.back_to_back;
-            self.back_to_back = hard;
+            self.back_to_back = if hard {
+                self.back_to_back.saturating_add(1)
+            } else {
+                0
+            };
             self.combo = self.combo.saturating_add(1);
         } else {
             self.combo = 0;
@@ -308,7 +310,7 @@ impl GameState {
             placement,
             lines_cleared: cleared_mask.count_ones(),
             combo: self.combo as u32,
-            back_to_back,
+            back_to_back: self.back_to_back as u32,
             perfect_clear: self.board.cols.iter().all(|&c| c == 0),
         }
     }

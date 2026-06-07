@@ -135,7 +135,7 @@ fn evaluate(
         reward += weights.perfect_clear;
     }
     if !info.perfect_clear || !weights.perfect_clear_override {
-        if info.back_to_back {
+        if info.lines_cleared != 0 && info.back_to_back > 1 {
             reward += weights.back_to_back_clear;
         }
         match info.placement.spin {
@@ -152,7 +152,7 @@ fn evaluate(
     {
         reward += weights.wasted_t;
     }
-    if state.back_to_back {
+    if state.back_to_back > 0 {
         eval += weights.has_back_to_back;
     }
     reward += weights.softdrop * softdrop as f32;

@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::data::{Board, Piece, Placement};
 pub use crate::movegen::Kickset;
@@ -60,7 +60,25 @@ pub struct Start {
     pub queue: Vec<Piece>,
     pub hold: Option<Piece>,
     pub combo: u32,
-    pub back_to_back: bool,
+    #[serde(deserialize_with = "deserialize_counter")]
+    pub back_to_back: u32,
+}
+
+fn deserialize_counter<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Counter {
+        Bool(bool),
+        Number(u32),
+    }
+
+    Ok(match Counter::deserialize(deserializer)? {
+        Counter::Bool(value) => u32::from(value),
+        Counter::Number(value) => value,
+    })
 }
 
 #[derive(Clone, Copy, Deserialize)]

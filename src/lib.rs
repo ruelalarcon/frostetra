@@ -117,7 +117,7 @@ fn create_bot(
 
     let state = GameState {
         reserve,
-        back_to_back: start.back_to_back,
+        back_to_back: start.back_to_back.try_into().unwrap_or(255),
         combo: start.combo.try_into().unwrap_or(255),
         bag: EnumSet::all(),
         board: start.board.into(),
