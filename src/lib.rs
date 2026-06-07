@@ -82,12 +82,16 @@ pub async fn run(
                 kickset,
                 rot180,
                 sonic_drop,
+                allspin_b2b,
+                allclear_b2b,
             } => {
                 randomizer = rules_randomizer;
                 game_rules = GameRules {
                     kickset,
                     rot180,
                     sonic_drop,
+                    allspin_b2b,
+                    allclear_b2b,
                 };
                 outgoing.send(BotMessage::Ready).await.unwrap();
             }

@@ -5,6 +5,7 @@ use ouroboros::self_referencing;
 
 use crate::data::Placement;
 use crate::data::{GameState, Piece};
+use crate::rules::GameRules;
 
 mod known;
 mod speculated;
@@ -90,7 +91,7 @@ impl<E: Evaluation> Dag<E> {
         }
     }
 
-    pub fn advance(&mut self, mv: Placement) {
+    pub fn advance(&mut self, mv: Placement, rules: &GameRules) {
         puffin::profile_function!();
         let top_layer = std::mem::take(&mut *self.top_layer);
         self.root.advance(
@@ -99,6 +100,7 @@ impl<E: Evaluation> Dag<E> {
                 .piece()
                 .expect("cannot advance without next piece"),
             mv,
+            rules,
         );
         Lazy::force(&top_layer.next_layer);
         self.top_layer = Lazy::into_value(top_layer.next_layer).unwrap();
@@ -122,7 +124,12 @@ impl<E: Evaluation> Dag<E> {
         self.top_layer.kind.suggest(&self.root)
     }
 
-    pub fn select(&self, speculate: bool, exploration: f64) -> Option<Selection<'_, E>> {
+    pub fn select(
+        &self,
+        speculate: bool,
+        exploration: f64,
+        rules: &GameRules,
+    ) -> Option<Selection<'_, E>> {
         puffin::profile_function!();
         let mut layers = vec![&*self.top_layer];
         let mut game_state = self.root;
@@ -133,7 +140,7 @@ impl<E: Evaluation> Dag<E> {
                 SelectResult::Failed => return None,
                 SelectResult::Done => return Some(Selection { layers, game_state }),
                 SelectResult::Advance(next, placement) => {
-                    game_state.advance(next, placement);
+                    game_state.advance(next, placement, rules);
                     layers.push(&layer.next_layer);
                 }
             }

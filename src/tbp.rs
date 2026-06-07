@@ -21,6 +21,10 @@ pub enum FrontendMessage {
         rot180: bool,
         #[serde(default)]
         sonic_drop: SonicDrop,
+        #[serde(default)]
+        allspin_b2b: bool,
+        #[serde(default)]
+        allclear_b2b: bool,
     },
     Start(Start),
     Play {

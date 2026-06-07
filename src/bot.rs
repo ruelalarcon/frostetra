@@ -95,7 +95,8 @@ impl Bot {
 
     pub fn advance(&mut self, mv: Placement) {
         puffin::profile_function!();
-        self.current.advance(self.queue.pop_front().unwrap(), mv);
+        self.current
+            .advance(self.queue.pop_front().unwrap(), mv, &self.options.rules);
         self.consumed_pieces += 1;
         if let Some(to) = self.mode.advance(&self.options, mv) {
             self.switch(to);

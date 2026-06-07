@@ -7,6 +7,8 @@ pub struct GameRules {
     pub kickset: Kickset,
     pub rot180: bool,
     pub sonic_drop: SonicDrop,
+    pub allspin_b2b: bool,
+    pub allclear_b2b: bool,
 }
 
 impl Default for GameRules {
@@ -15,6 +17,8 @@ impl Default for GameRules {
             kickset: Kickset::default(),
             rot180: true,
             sonic_drop: SonicDrop::Only,
+            allspin_b2b: false,
+            allclear_b2b: false,
         }
     }
 }

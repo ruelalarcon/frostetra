@@ -23,9 +23,9 @@ impl Freestyle {
 }
 
 impl Mode for Freestyle {
-    fn advance(&mut self, _options: &BotOptions, mv: Placement) -> Option<ModeSwitch> {
+    fn advance(&mut self, options: &BotOptions, mv: Placement) -> Option<ModeSwitch> {
         puffin::profile_function!();
-        self.dag.advance(mv);
+        self.dag.advance(mv, &options.rules);
         None
     }
 
@@ -44,10 +44,11 @@ impl Mode for Freestyle {
         let mut new_stats = Statistics::default();
         new_stats.selections += 1;
 
-        if let Some(node) = self
-            .dag
-            .select(options.speculate, options.config.freestyle_exploitation)
-        {
+        if let Some(node) = self.dag.select(
+            options.speculate,
+            options.config.freestyle_exploitation,
+            &options.rules,
+        ) {
             let (state, next) = node.state();
             let next_possibilities = next.map(EnumSet::only).unwrap_or(state.bag);
 
@@ -71,7 +72,7 @@ impl Mode for Freestyle {
                     });
                     for &(mv, sd_distance) in moves {
                         let mut state = state;
-                        let info = state.advance(next, mv);
+                        let info = state.advance(next, mv, &options.rules);
 
                         let (eval, reward) =
                             evaluate(&options.config.freestyle_weights, state, &info, sd_distance);
