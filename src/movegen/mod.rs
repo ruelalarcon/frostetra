@@ -110,13 +110,16 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
             },
         };
 
-        let sds = underground_locks
-            .entry(Placement {
-                location: dropped.location.canonical_form(),
-                ..dropped
-            })
-            .or_insert(expand.soft_drops);
-        *sds = expand.soft_drops.min(*sds);
+        let key = Placement {
+            location: dropped.location.canonical_form(),
+            ..dropped
+        };
+        let entry = underground_locks
+            .entry(key)
+            .or_insert((dropped, expand.soft_drops));
+        if expand.soft_drops < entry.1 {
+            *entry = (dropped, expand.soft_drops);
+        }
 
         let mut update_position = update_position(&mut queue, &mut values, fast_mode, board);
 
@@ -141,7 +144,7 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
         }
     }
 
-    locks.extend(underground_locks.into_iter());
+    locks.extend(underground_locks.drain().map(|(_, value)| value));
     locks
 }
 
