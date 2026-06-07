@@ -262,7 +262,11 @@ fn rotate(
 
         let spin;
         if target.piece != Piece::T {
-            spin = Spin::None;
+            spin = if non_t_spin(target, board) {
+                Spin::Full
+            } else {
+                Spin::None
+            };
         } else {
             let corners = [(-1, -1), (1, -1), (-1, 1), (1, 1)]
                 .iter()
@@ -290,6 +294,25 @@ fn rotate(
     }
 
     None
+}
+
+fn non_t_spin(location: PieceLocation, board: &Board) -> bool {
+    [
+        PieceLocation {
+            x: location.x - 1,
+            ..location
+        },
+        PieceLocation {
+            x: location.x + 1,
+            ..location
+        },
+        PieceLocation {
+            y: location.y + 1,
+            ..location
+        },
+    ]
+    .iter()
+    .all(|location| location.obstructed(board))
 }
 
 #[derive(Clone, Copy, Debug, Eq)]
