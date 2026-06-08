@@ -1,7 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-use crate::data::{Board, Piece, Placement};
+use crate::data::{Board, Piece, PieceLocation, Placement};
 pub use crate::movegen::Kickset;
 pub use crate::rules::SonicDrop;
 
@@ -74,6 +74,7 @@ pub struct Capabilities {
 #[derive(Deserialize)]
 pub struct Start {
     pub board: Board,
+    pub active: PieceLocation,
     pub queue: Vec<Piece>,
     pub hold: Option<Piece>,
     pub combo: u32,

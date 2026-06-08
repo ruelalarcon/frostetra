@@ -135,13 +135,18 @@ async fn send_logs(
 }
 
 fn create_bot(
-    mut start: tbp::Start,
+    start: tbp::Start,
     rules: GameRules,
     randomizer: Randomizer,
     config: Arc<BotConfig>,
 ) -> Bot {
-    let visible_queue_len = start.queue.len();
-    let reserve = start.hold.unwrap_or_else(|| start.queue.remove(0));
+    let visible_queue_len = start.queue.len() + 1;
+    let reserve = start.hold.unwrap_or(start.active.piece);
+    let mut bot_queue = Vec::with_capacity(start.queue.len() + usize::from(start.hold.is_some()));
+    if start.hold.is_some() {
+        bot_queue.push(start.active.piece);
+    }
+    bot_queue.extend_from_slice(&start.queue);
 
     let bag_tracker = match randomizer {
         Randomizer::SevenBag => {
@@ -159,7 +164,7 @@ fn create_bot(
                 ))
             } else {
                 let mut observed = Vec::with_capacity(start.queue.len() + 1);
-                observed.push(reserve);
+                observed.push(start.active.piece);
                 observed.extend_from_slice(&start.queue);
                 Some(SevenBagTracker::from_observed(&observed))
             }
@@ -182,7 +187,7 @@ fn create_bot(
             config,
         },
         state,
-        &start.queue,
+        &bot_queue,
         bag_tracker,
     )
 }
