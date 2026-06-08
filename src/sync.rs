@@ -4,7 +4,7 @@ use parking_lot::{Condvar, Mutex, RwLock};
 
 use crate::bot::{Bot, Statistics};
 use crate::data::{Piece, Placement};
-use crate::tbp::MoveInfo;
+use crate::tbp::SearchInfo;
 
 pub struct BotSyncronizer {
     state: Mutex<State>,
@@ -40,12 +40,12 @@ impl BotSyncronizer {
         *self.bot.write() = None;
     }
 
-    pub fn suggest(&self) -> Option<(Vec<Placement>, MoveInfo)> {
+    pub fn suggest(&self) -> Option<(Vec<Placement>, SearchInfo)> {
         let bot = self.bot.read();
         bot.as_ref().map(|bot| {
             let state = self.state.lock();
             let suggestion = bot.suggest();
-            let info = MoveInfo {
+            let info = SearchInfo {
                 nodes: state.stats.nodes,
                 nps: state.stats.nodes as f64 / state.last_advance.elapsed().as_secs_f64(),
                 extra: format!(

@@ -45,17 +45,29 @@ pub enum FrontendMessage {
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum BotMessage {
-    Info {
+    Register {
         name: &'static str,
         version: &'static str,
         author: &'static str,
-        features: &'static [&'static str],
+        capabilities: Capabilities,
+    },
+    Info {
+        topic: &'static str,
+        data: SearchInfo,
     },
     Ready,
     Suggestion {
         moves: Vec<Placement>,
-        move_info: MoveInfo,
     },
+}
+
+#[derive(Serialize)]
+pub struct Capabilities {
+    pub randomizers: &'static [&'static str],
+    pub kicksets: &'static [&'static str],
+    pub rot180: bool,
+    pub sonic_drop: &'static [&'static str],
+    pub piece_stream: bool,
 }
 
 #[derive(Deserialize)]
@@ -107,7 +119,7 @@ impl Default for Randomizer {
 }
 
 #[derive(Serialize)]
-pub struct MoveInfo {
+pub struct SearchInfo {
     pub nodes: u64,
     pub nps: f64,
     pub extra: String,

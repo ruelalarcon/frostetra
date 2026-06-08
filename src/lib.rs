@@ -10,7 +10,7 @@ use crate::bot::Bot;
 use crate::data::GameState;
 use crate::rules::GameRules;
 use crate::sync::BotSyncronizer;
-use crate::tbp::{BotMessage, FrontendMessage};
+use crate::tbp::{BotMessage, Capabilities, FrontendMessage};
 
 mod bot;
 mod tbp;
@@ -27,11 +27,17 @@ pub async fn run(
     config: Arc<BotConfig>,
 ) {
     outgoing
-        .send(BotMessage::Info {
+        .send(BotMessage::Register {
             name: "Cold Clear 2",
             version: concat!(env!("CARGO_PKG_VERSION"), " ", env!("GIT_HASH")),
             author: "MinusKelvin",
-            features: &[],
+            capabilities: Capabilities {
+                randomizers: &["seven_bag"],
+                kicksets: &["srs"],
+                rot180: true,
+                sonic_drop: &["only", "allow"],
+                piece_stream: true,
+            },
         })
         .await
         .unwrap();
@@ -58,9 +64,16 @@ pub async fn run(
                 waiting_on_first_piece = None;
             }
             FrontendMessage::Suggest => {
-                if let Some((moves, move_info)) = bot.suggest() {
+                if let Some((moves, data)) = bot.suggest() {
                     outgoing
-                        .send(BotMessage::Suggestion { moves, move_info })
+                        .send(BotMessage::Info {
+                            topic: "search",
+                            data,
+                        })
+                        .await
+                        .unwrap();
+                    outgoing
+                        .send(BotMessage::Suggestion { moves })
                         .await
                         .unwrap();
                 }
