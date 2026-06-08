@@ -107,14 +107,29 @@ fn create_bot(
     randomizer: Randomizer,
     config: Arc<BotConfig>,
 ) -> Bot {
+    let visible_queue_len = start.queue.len();
     let reserve = start.hold.unwrap_or_else(|| start.queue.remove(0));
 
     let bag_tracker = match randomizer {
         Randomizer::SevenBag => {
-            let mut observed = Vec::with_capacity(start.queue.len() + 1);
-            observed.push(reserve);
-            observed.extend_from_slice(&start.queue);
-            Some(SevenBagTracker::from_observed(&observed))
+            if let Some(piece_stream) = start
+                .piece_stream
+                .as_ref()
+                .filter(|stream| !stream.pieces.is_empty())
+            {
+                let current_observed_index =
+                    piece_stream.pieces.len().saturating_sub(visible_queue_len);
+                Some(SevenBagTracker::from_piece_stream(
+                    piece_stream.offset,
+                    &piece_stream.pieces,
+                    current_observed_index,
+                ))
+            } else {
+                let mut observed = Vec::with_capacity(start.queue.len() + 1);
+                observed.push(reserve);
+                observed.extend_from_slice(&start.queue);
+                Some(SevenBagTracker::from_observed(&observed))
+            }
         }
         Randomizer::Unknown => None,
     };

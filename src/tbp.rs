@@ -66,6 +66,13 @@ pub struct Start {
     pub combo: u32,
     #[serde(deserialize_with = "deserialize_counter")]
     pub back_to_back: u32,
+    pub piece_stream: Option<PieceStream>,
+}
+
+#[derive(Deserialize)]
+pub struct PieceStream {
+    pub offset: Option<usize>,
+    pub pieces: Vec<Piece>,
 }
 
 fn deserialize_counter<'de, D>(deserializer: D) -> Result<u32, D::Error>
