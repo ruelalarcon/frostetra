@@ -21,6 +21,7 @@ pub struct Bot {
     bag_tracker: Option<SevenBagTracker>,
     consumed_pieces: usize,
     logged_speculation_start: bool,
+    logs: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -70,14 +71,12 @@ impl Bot {
         bag_tracker: Option<SevenBagTracker>,
     ) -> Self {
         let mut logged_speculation_start = false;
+        let mut logs = Vec::new();
         if let Some(tracker) = &bag_tracker {
             if let Some(bag) = tracker.confident_bag_after(1) {
                 root.bag = bag;
                 options.speculate = true;
-                eprintln!(
-                    "[info] seven-bag tracker confident; starting speculation with bag {:?}",
-                    bag
-                );
+                logs.push(speculation_log(bag));
                 logged_speculation_start = true;
             }
         }
@@ -90,6 +89,7 @@ impl Bot {
             bag_tracker,
             consumed_pieces: 1,
             logged_speculation_start,
+            logs,
         }
     }
 
@@ -125,6 +125,10 @@ impl Bot {
         self.mode.do_work(&self.options)
     }
 
+    pub fn drain_logs(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.logs)
+    }
+
     fn switch(&mut self, to: ModeSwitch) {
         puffin::profile_function!();
         match to {
@@ -150,16 +154,20 @@ impl Bot {
         self.current.bag = bag;
         self.options.speculate = true;
         if !self.logged_speculation_start {
-            eprintln!(
-                "[info] seven-bag tracker confident; starting speculation with bag {:?}",
-                bag
-            );
+            self.logs.push(speculation_log(bag));
             self.logged_speculation_start = true;
         }
         self.mode =
             Freestyle::new(&self.options, self.current, self.queue.make_contiguous()).into();
         true
     }
+}
+
+fn speculation_log(bag: EnumSet<Piece>) -> String {
+    format!(
+        "seven-bag tracker confident; starting speculation with bag {:?}",
+        bag
+    )
 }
 
 #[derive(Clone, Debug)]

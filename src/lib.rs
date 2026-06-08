@@ -4,6 +4,7 @@ use std::sync::Arc;
 use bot::{BotConfig, BotOptions, SevenBagTracker};
 use enumset::EnumSet;
 use futures::prelude::*;
+use serde_json::Value;
 use tbp::Randomizer;
 
 use crate::bot::Bot;
@@ -57,6 +58,7 @@ pub async fn run(
                     waiting_on_first_piece = Some(start);
                 } else {
                     bot.start(create_bot(start, game_rules, randomizer, config.clone()));
+                    send_logs(&mut outgoing, bot.drain_logs()).await;
                 }
             }
             FrontendMessage::Stop => {
@@ -68,7 +70,7 @@ pub async fn run(
                     outgoing
                         .send(BotMessage::Info {
                             topic: "search",
-                            data,
+                            data: serde_json::to_value(data).unwrap(),
                         })
                         .await
                         .unwrap();
@@ -80,14 +82,17 @@ pub async fn run(
             }
             FrontendMessage::Play { mv } => {
                 bot.advance(mv);
+                send_logs(&mut outgoing, bot.drain_logs()).await;
                 puffin::GlobalProfiler::lock().new_frame();
             }
             FrontendMessage::NewPiece { piece } => {
                 if let Some(mut start) = waiting_on_first_piece.take() {
                     start.queue.push(piece);
                     bot.start(create_bot(start, game_rules, randomizer, config.clone()));
+                    send_logs(&mut outgoing, bot.drain_logs()).await;
                 } else {
                     bot.new_piece(piece);
+                    send_logs(&mut outgoing, bot.drain_logs()).await;
                 }
             }
             FrontendMessage::Rules {
@@ -111,6 +116,21 @@ pub async fn run(
             FrontendMessage::Quit => break,
             FrontendMessage::Unknown => {}
         }
+    }
+}
+
+async fn send_logs(
+    outgoing: &mut (impl Sink<BotMessage, Error = Infallible> + Unpin),
+    logs: Vec<String>,
+) {
+    for data in logs {
+        outgoing
+            .send(BotMessage::Info {
+                topic: "log",
+                data: Value::String(data),
+            })
+            .await
+            .unwrap();
     }
 }
 

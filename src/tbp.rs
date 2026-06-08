@@ -1,4 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 
 use crate::data::{Board, Piece, Placement};
 pub use crate::movegen::Kickset;
@@ -53,7 +54,7 @@ pub enum BotMessage {
     },
     Info {
         topic: &'static str,
-        data: SearchInfo,
+        data: Value,
     },
     Ready,
     Suggestion {

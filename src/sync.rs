@@ -79,6 +79,11 @@ impl BotSyncronizer {
         self.blocker.notify_all();
     }
 
+    pub fn drain_logs(&self) -> Vec<String> {
+        let mut bot = self.bot.write();
+        bot.as_mut().map_or_else(Vec::new, Bot::drain_logs)
+    }
+
     pub fn work_loop(&self) {
         let mut state = self.state.lock();
         loop {
