@@ -141,10 +141,10 @@ fn create_bot(
     config: Arc<BotConfig>,
 ) -> Bot {
     let visible_queue_len = start.queue.len() + 1;
-    let reserve = start.hold.unwrap_or(start.active.piece);
+    let reserve = start.hold.unwrap_or(start.active);
     let mut bot_queue = Vec::with_capacity(start.queue.len() + usize::from(start.hold.is_some()));
     if start.hold.is_some() {
-        bot_queue.push(start.active.piece);
+        bot_queue.push(start.active);
     }
     bot_queue.extend_from_slice(&start.queue);
 
@@ -164,7 +164,7 @@ fn create_bot(
                 ))
             } else {
                 let mut observed = Vec::with_capacity(start.queue.len() + 1);
-                observed.push(start.active.piece);
+                observed.push(start.active);
                 observed.extend_from_slice(&start.queue);
                 Some(SevenBagTracker::from_observed(&observed))
             }
