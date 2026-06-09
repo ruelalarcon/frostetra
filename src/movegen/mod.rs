@@ -51,14 +51,21 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
                 if let Some(mv) = shift(location, &collision_map, 1) {
                     update_position(mv, distance as u32);
                 }
-                if let Some(mv) = rotate_cw(location, &collision_map, board) {
-                    update_position(mv, distance as u32);
-                }
-                if let Some(mv) = rotate_ccw(location, &collision_map, board) {
-                    update_position(mv, distance as u32);
+                for rotation in [location.rotation.cw(), location.rotation.ccw()] {
+                    if let Some(mv) =
+                        rotate_to(location, rotation, &collision_map, board, rules.kickset)
+                    {
+                        update_position(mv, distance as u32);
+                    }
                 }
                 if rules.rot180 {
-                    if let Some(mv) = rotate_180(location, &collision_map, board) {
+                    if let Some(mv) = rotate_to(
+                        location,
+                        location.rotation.flip(),
+                        &collision_map,
+                        board,
+                        rules.kickset,
+                    ) {
                         update_position(mv, distance as u32);
                     }
                 }
@@ -131,14 +138,28 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
         if let Some(mv) = shift(expand.mv.location, &collision_map, 1) {
             update_position(mv, expand.soft_drops);
         }
-        if let Some(mv) = rotate_cw(expand.mv.location, &collision_map, board) {
-            update_position(mv, expand.soft_drops);
-        }
-        if let Some(mv) = rotate_ccw(expand.mv.location, &collision_map, board) {
-            update_position(mv, expand.soft_drops);
+        for rotation in [
+            expand.mv.location.rotation.cw(),
+            expand.mv.location.rotation.ccw(),
+        ] {
+            if let Some(mv) = rotate_to(
+                expand.mv.location,
+                rotation,
+                &collision_map,
+                board,
+                rules.kickset,
+            ) {
+                update_position(mv, expand.soft_drops);
+            }
         }
         if rules.rot180 {
-            if let Some(mv) = rotate_180(expand.mv.location, &collision_map, board) {
+            if let Some(mv) = rotate_to(
+                expand.mv.location,
+                expand.mv.location.rotation.flip(),
+                &collision_map,
+                board,
+                rules.kickset,
+            ) {
                 update_position(mv, expand.soft_drops);
             }
         }
@@ -180,70 +201,25 @@ fn shift(mut location: PieceLocation, collision_map: &CollisionMaps, dx: i8) -> 
     })
 }
 
-fn rotate_cw(
+fn rotate_to(
     from: PieceLocation,
+    to_rotation: Rotation,
     collision_map: &CollisionMaps,
     board: &Board,
+    kickset: kicks::Kickset,
 ) -> Option<Placement> {
-    if from.piece == Piece::O {
-        return None;
-    }
-    const KICKS: [[[(i8, i8); 5]; 4]; 7] = piece_lut!(piece => rotation_lut!(rotation => kicks::kicks(piece, rotation, rotation.cw())));
     let unkicked = PieceLocation {
-        rotation: from.rotation.cw(),
+        rotation: to_rotation,
         ..from
     };
     rotate(
         unkicked,
         collision_map,
         board,
-        KICKS[from.piece as usize][from.rotation as usize]
+        kickset
+            .kicks_between(from.piece, from.rotation, to_rotation)
             .iter()
             .copied(),
-    )
-}
-
-fn rotate_ccw(
-    from: PieceLocation,
-    collision_map: &CollisionMaps,
-    board: &Board,
-) -> Option<Placement> {
-    if from.piece == Piece::O {
-        return None;
-    }
-    const KICKS: [[[(i8, i8); 5]; 4]; 7] = piece_lut!(piece => rotation_lut!(rotation => kicks::kicks(piece, rotation, rotation.ccw())));
-    let unkicked = PieceLocation {
-        rotation: from.rotation.ccw(),
-        ..from
-    };
-    rotate(
-        unkicked,
-        collision_map,
-        board,
-        KICKS[from.piece as usize][from.rotation as usize]
-            .iter()
-            .copied(),
-    )
-}
-
-fn rotate_180(
-    from: PieceLocation,
-    collision_map: &CollisionMaps,
-    board: &Board,
-) -> Option<Placement> {
-    if from.piece == Piece::O {
-        return None;
-    }
-    const KICKS: [[(i8, i8); 1]; 4] = rotation_lut!(rotation => kicks::kicks_180(rotation));
-    let unkicked = PieceLocation {
-        rotation: from.rotation.flip(),
-        ..from
-    };
-    rotate(
-        unkicked,
-        collision_map,
-        board,
-        KICKS[from.rotation as usize].iter().copied(),
     )
 }
 
