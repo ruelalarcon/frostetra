@@ -14,5 +14,5 @@ interaction with a frontend, such as [Quadspace](https://github.com/SoRA-X7/Quad
 
 ## License
 
-Cold Clear 2 is licensed under either [Apache License Version 2.0](LICENSE-APACHE)
-or [MIT License](LICENSE-MIT), at your option.
+This project is a substantially modified fork of Cold Clear 2 by Mark Carlson.
+It is licensed under the [MIT License](LICENSE.txt).
