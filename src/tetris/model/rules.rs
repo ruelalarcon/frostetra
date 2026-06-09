@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::movegen::Kickset;
+use crate::tetris::movegen::Kickset;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GameRules {

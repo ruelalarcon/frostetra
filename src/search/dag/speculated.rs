@@ -6,8 +6,8 @@ use enum_map::EnumMap;
 use enumset::EnumSet;
 use rand::prelude::*;
 
-use crate::data::{GameState, Piece, Placement};
 use crate::search::map::StateMap;
+use crate::tetris::model::{GameState, Piece, Placement};
 
 use super::{
     update_child, BackpropUpdate, Child, ChildData, Evaluation, LayerCommon, SelectResult,

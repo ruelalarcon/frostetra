@@ -1,9 +1,9 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-use crate::data::{Board, Piece, Placement};
-pub use crate::movegen::Kickset;
-pub use crate::rules::SonicDrop;
+pub use crate::tetris::model::rules::SonicDrop;
+use crate::tetris::model::{Board, Piece, Placement};
+pub use crate::tetris::movegen::Kickset;
 
 fn default_rot180() -> bool {
     true
@@ -125,18 +125,4 @@ pub struct SearchInfo {
     pub nodes: u64,
     pub nps: f64,
     pub extra: String,
-}
-
-impl From<Vec<[Option<char>; 10]>> for Board {
-    fn from(v: Vec<[Option<char>; 10]>) -> Self {
-        let mut cols = [0; 10];
-        for x in 0..10 {
-            for y in 0..40 {
-                if v[y][x].is_some() {
-                    cols[x] |= 1 << y;
-                }
-            }
-        }
-        Board { cols }
-    }
 }

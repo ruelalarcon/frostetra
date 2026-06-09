@@ -1,6 +1,6 @@
-use cold_clear_2::data::{Board, Piece};
-use cold_clear_2::movegen::find_moves;
-use cold_clear_2::rules::GameRules;
+use cold_clear_2::tetris::model::rules::GameRules;
+use cold_clear_2::tetris::model::{Board, Piece};
+use cold_clear_2::tetris::movegen::find_moves;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 const PIECES: [Piece; 7] = [

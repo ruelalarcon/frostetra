@@ -3,11 +3,10 @@ use std::collections::BinaryHeap;
 
 use ahash::AHashMap;
 
-use crate::data::*;
-use crate::rules::{GameRules, SonicDrop};
-
-pub mod kicks;
-pub use kicks::Kickset;
+use crate::tetris::model::rules::{GameRules, SonicDrop};
+use crate::tetris::model::*;
+use crate::tetris::movegen::collision_maps::CollisionMaps;
+use crate::tetris::movegen::kicks;
 
 pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placement, u32)> {
     puffin::profile_function!();
@@ -315,43 +314,5 @@ impl Ord for Intermediate {
 impl PartialOrd for Intermediate {
     fn partial_cmp(&self, other: &Intermediate) -> Option<Ordering> {
         Some(self.cmp(other))
-    }
-}
-
-struct CollisionMaps {
-    boards: [[u64; 10]; 4],
-}
-
-impl CollisionMaps {
-    fn new(board: &Board, piece: Piece) -> Self {
-        let mut boards = [[0; 10]; 4];
-        for rot in [
-            Rotation::North,
-            Rotation::West,
-            Rotation::South,
-            Rotation::East,
-        ] {
-            for (dx, dy) in rot.rotate_cells(piece.cells()) {
-                for x in 0..10 {
-                    let c = board.cols.get((x + dx) as usize).copied().unwrap_or(!0);
-                    let c = match dy < 0 {
-                        true => !(!c << -dy),
-                        false => c >> dy,
-                    };
-                    boards[rot as usize][x as usize] |= c;
-                }
-            }
-        }
-        CollisionMaps { boards }
-    }
-
-    fn obstructed(&self, piece: PieceLocation) -> bool {
-        let v = piece.y < 0
-            || piece.cells().iter().any(|&(_, y)| y >= 40)
-            || self.boards[piece.rotation as usize]
-                .get(piece.x as usize)
-                .map(|&c| c & 1 << piece.y != 0)
-                .unwrap_or(true);
-        v
     }
 }

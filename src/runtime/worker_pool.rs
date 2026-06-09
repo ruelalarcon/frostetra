@@ -3,8 +3,8 @@ use std::time::Instant;
 use parking_lot::{Condvar, Mutex, RwLock};
 
 use crate::bot::{Bot, Statistics};
-use crate::data::{Piece, Placement};
-use crate::tbp::SearchInfo;
+use crate::protocol::tbp::SearchInfo;
+use crate::tetris::model::{Piece, Placement};
 
 pub struct BotSyncronizer {
     state: Mutex<State>,

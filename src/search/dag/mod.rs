@@ -3,9 +3,9 @@ use enum_map::EnumMap;
 use once_cell::sync::Lazy;
 use ouroboros::self_referencing;
 
-use crate::data::Placement;
-use crate::data::{GameState, Piece};
-use crate::rules::GameRules;
+use crate::tetris::model::rules::GameRules;
+use crate::tetris::model::Placement;
+use crate::tetris::model::{GameState, Piece};
 
 mod known;
 mod speculated;

@@ -10,7 +10,7 @@ use parking_lot::RwLock;
 use parking_lot::RwLockReadGuard;
 use parking_lot::RwLockWriteGuard;
 
-use crate::data::GameState;
+use crate::tetris::model::GameState;
 
 pub struct StateMap<V, S = ahash::RandomState> {
     hasher: S,
