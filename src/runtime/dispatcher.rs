@@ -22,7 +22,7 @@ pub async fn run(
             author: "Ruel Nathaniel Alarcon",
             capabilities: Capabilities {
                 randomizers: &["seven_bag"],
-                kicksets: &["srs"],
+                kicksets: &["srs", "srs_plus"],
                 rot180: true,
                 sonic_drop: &["only", "allow"],
                 piece_stream: true,
