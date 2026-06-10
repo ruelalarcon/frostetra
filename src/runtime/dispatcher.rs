@@ -26,6 +26,7 @@ pub async fn run(
                 rot180: true,
                 sonic_drop: &["only", "allow"],
                 piece_stream: true,
+                spawn_position: true,
             },
         })
         .await
@@ -89,6 +90,8 @@ pub async fn run(
                 sonic_drop,
                 allspin_b2b,
                 allclear_b2b,
+                spawn_x,
+                spawn_y,
             } => {
                 randomizer = rules_randomizer;
                 game_rules = GameRules {
@@ -97,6 +100,8 @@ pub async fn run(
                     sonic_drop,
                     allspin_b2b,
                     allclear_b2b,
+                    spawn_x,
+                    spawn_y,
                 };
                 outgoing.send(BotMessage::Ready).await.unwrap();
             }

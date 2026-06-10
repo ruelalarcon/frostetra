@@ -9,6 +9,8 @@ pub struct GameRules {
     pub sonic_drop: SonicDrop,
     pub allspin_b2b: bool,
     pub allclear_b2b: bool,
+    pub spawn_x: i8,
+    pub spawn_y: i8,
 }
 
 impl Default for GameRules {
@@ -19,6 +21,8 @@ impl Default for GameRules {
             sonic_drop: SonicDrop::Only,
             allspin_b2b: false,
             allclear_b2b: false,
+            spawn_x: 4,
+            spawn_y: 19,
         }
     }
 }

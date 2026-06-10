@@ -9,6 +9,14 @@ fn default_rot180() -> bool {
     true
 }
 
+fn default_spawn_x() -> i8 {
+    4
+}
+
+fn default_spawn_y() -> i8 {
+    19
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
@@ -26,6 +34,10 @@ pub enum FrontendMessage {
         allspin_b2b: bool,
         #[serde(default)]
         allclear_b2b: bool,
+        #[serde(default = "default_spawn_x")]
+        spawn_x: i8,
+        #[serde(default = "default_spawn_y")]
+        spawn_y: i8,
     },
     Start(Start),
     Play {
@@ -69,6 +81,7 @@ pub struct Capabilities {
     pub rot180: bool,
     pub sonic_drop: &'static [&'static str],
     pub piece_stream: bool,
+    pub spawn_position: bool,
 }
 
 #[derive(Deserialize)]

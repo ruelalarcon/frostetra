@@ -29,7 +29,7 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
                     piece,
                     rotation,
                     x,
-                    y: 19,
+                    y: rules.spawn_y,
                 };
                 if collision_map.obstructed(location) {
                     continue;
@@ -78,8 +78,8 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
         let mut spawned = PieceLocation {
             piece,
             rotation: Rotation::North,
-            x: 4,
-            y: 19,
+            x: rules.spawn_x,
+            y: rules.spawn_y,
         };
         if collision_map.obstructed(spawned) {
             spawned.y += 1;
