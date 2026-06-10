@@ -52,5 +52,5 @@ fn main() {
     futures::pin_mut!(incoming);
     futures::pin_mut!(outgoing);
 
-    futures::executor::block_on(cold_clear_2::run(incoming, outgoing, config));
+    futures::executor::block_on(frostetra::run(incoming, outgoing, config));
 }

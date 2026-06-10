@@ -1,5 +1,5 @@
 [package]
-name = "cold-clear-2"
+name = "frostetra"
 version = "0.1.0"
 authors = [
     "MinusKelvin <mark.carlson@minuskelvin.net>",
@@ -9,10 +9,10 @@ edition = "2021"
 license = "MIT"
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [[bin]]
-name = "cold-clear-2"
+name = "frostetra"
 path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -1,9 +1,8 @@
-# Cold Clear 2
+# Frostetra
 
-Cold Clear 2 is a modern Tetris versus bot and a complete rewrite and evolution
-of [Cold Clear](https://github.com/MinusKelvin/cold-clear). It implements the
-[Stacker Bot Protocol](https://github.com/stacker-bot-protocol) for
-interaction with a frontend, such as [Quadspace](https://github.com/SoRA-X7/Quadspace).
+Frostetra is a Modern Tetris bot descended from [Cold Clear 2](https://github.com/MinusKelvin/cold-clear-2) by MinusKelvin.
+
+It implements the [Stacker Bot Protocol](https://github.com/ruelalarcon/stacker_bot_protocol) for interaction with compatible frontends.
 
 ## Technical Features
 
@@ -14,5 +13,5 @@ interaction with a frontend, such as [Quadspace](https://github.com/SoRA-X7/Quad
 
 ## License
 
-This project is a substantially modified fork of Cold Clear 2 by Mark Carlson.
-It is licensed under the [MIT License](LICENSE.txt).
+Frostetra is descended from Cold Clear 2 by Mark Carlson. It is licensed under
+the [MIT License](LICENSE.txt).

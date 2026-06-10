@@ -17,9 +17,9 @@ pub async fn run(
 ) {
     outgoing
         .send(BotMessage::Register {
-            name: "Cold Clear 2",
+            name: "Frostetra",
             version: concat!(env!("CARGO_PKG_VERSION"), " ", env!("GIT_HASH")),
-            author: "MinusKelvin",
+            author: "Ruel Nathaniel Alarcon",
             capabilities: Capabilities {
                 randomizers: &["seven_bag"],
                 kicksets: &["srs"],
