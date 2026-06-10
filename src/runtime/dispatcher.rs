@@ -5,7 +5,7 @@ use futures::prelude::*;
 use serde_json::Value;
 
 use crate::bot::BotConfig;
-use crate::protocol::tbp::{BotMessage, Capabilities, FrontendMessage, Randomizer};
+use crate::protocol::sbp::{BotMessage, Capabilities, FrontendMessage, Randomizer};
 use crate::runtime::bot_factory::create_bot;
 use crate::runtime::worker_pool::BotSyncronizer;
 use crate::tetris::model::rules::GameRules;

@@ -4,7 +4,7 @@ use crate::tetris::model::{Board, Piece, Rotation};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PieceLocation {
-    #[serde(rename = "type")]
+    #[serde(rename = "piece", alias = "type")]
     pub piece: Piece,
     #[serde(rename = "orientation")]
     pub rotation: Rotation,

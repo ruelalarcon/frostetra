@@ -3,7 +3,7 @@ use std::sync::Arc;
 use enumset::EnumSet;
 
 use crate::bot::{Bot, BotConfig, BotOptions};
-use crate::protocol::tbp::{Randomizer, Start};
+use crate::protocol::sbp::{Randomizer, Start};
 use crate::tetris::model::rules::GameRules;
 use crate::tetris::model::GameState;
 use crate::tetris::randomizer::seven_bag::SevenBagTracker;
