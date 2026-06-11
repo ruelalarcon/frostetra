@@ -15,7 +15,7 @@ pub struct BotConfig {
 impl Default for BotConfig {
     fn default() -> Self {
         static DEFAULT: Lazy<BotConfig> = Lazy::new(|| {
-            serde_json::from_str(include_str!("behavior/freestyle/default_weights.json")).unwrap()
+            serde_json::from_str(include_str!("behavior/freestyle/default_config.json")).unwrap()
         });
         DEFAULT.clone()
     }
