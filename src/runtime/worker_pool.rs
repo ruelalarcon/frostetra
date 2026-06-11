@@ -29,15 +29,16 @@ impl BotSyncronizer {
 
     pub fn start(&self, initial_state: Bot) {
         let mut state = self.state.lock();
-        state.stats = Default::default();
-        state.nodes_since_start = 0;
-        state.start = Instant::now();
+        state.reset_session_stats();
         *self.bot.write() = Some(initial_state);
         self.blocker.notify_all();
     }
 
     pub fn stop(&self) {
+        let mut state = self.state.lock();
+        state.reset_session_stats();
         *self.bot.write() = None;
+        self.blocker.notify_all();
     }
 
     pub fn suggest(&self) -> Option<(Vec<Placement>, SearchInfo)> {
@@ -119,4 +120,14 @@ struct State {
     node_limit: u64,
     start: Instant,
     nodes_since_start: u64,
+}
+
+impl State {
+    fn reset_session_stats(&mut self) {
+        let now = Instant::now();
+        self.stats = Default::default();
+        self.last_advance = now;
+        self.start = now;
+        self.nodes_since_start = 0;
+    }
 }

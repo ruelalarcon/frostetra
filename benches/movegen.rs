@@ -1,7 +1,7 @@
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use frostetra::tetris::model::rules::GameRules;
 use frostetra::tetris::model::{Board, Piece};
 use frostetra::tetris::movegen::find_moves;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 const PIECES: [Piece; 7] = [
     Piece::I,
