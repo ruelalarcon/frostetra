@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use futures::channel::mpsc::UnboundedSender;
 use parking_lot::{Condvar, Mutex, RwLock};
 
 use crate::bot::{Bot, Statistics};
@@ -10,20 +11,25 @@ pub struct BotSyncronizer {
     state: Mutex<State>,
     blocker: Condvar,
     bot: RwLock<Option<Bot>>,
+    log_sender: UnboundedSender<String>,
 }
 
 impl BotSyncronizer {
-    pub fn new() -> Self {
+    const NODE_LIMIT: u64 = 2_000_000;
+
+    pub fn new(log_sender: UnboundedSender<String>) -> Self {
         BotSyncronizer {
             state: Mutex::new(State {
                 stats: Default::default(),
                 last_advance: Instant::now(),
-                node_limit: u64::MAX,
+                node_limit: Self::NODE_LIMIT,
+                logged_node_limit: false,
                 start: Instant::now(),
                 nodes_since_start: 0,
             }),
             blocker: Condvar::new(),
             bot: RwLock::new(None),
+            log_sender,
         }
     }
 
@@ -88,7 +94,7 @@ impl BotSyncronizer {
     pub fn work_loop(&self) {
         let mut state = self.state.lock();
         loop {
-            if state.stats.nodes > state.node_limit {
+            if state.stats.nodes >= state.node_limit {
                 self.blocker.wait(&mut state);
                 continue;
             }
@@ -109,6 +115,13 @@ impl BotSyncronizer {
             state = self.state.lock();
             state.stats.accumulate(new_stats);
             state.nodes_since_start += new_stats.nodes;
+            if !state.logged_node_limit && state.stats.nodes >= state.node_limit {
+                state.logged_node_limit = true;
+                let _ = self.log_sender.unbounded_send(format!(
+                    "node cap reached: {} nodes; background search paused until the next piece",
+                    state.node_limit
+                ));
+            }
         }
     }
 }
@@ -118,6 +131,7 @@ struct State {
     stats: Statistics,
     last_advance: Instant,
     node_limit: u64,
+    logged_node_limit: bool,
     start: Instant,
     nodes_since_start: u64,
 }
@@ -126,6 +140,7 @@ impl State {
     fn reset_session_stats(&mut self) {
         let now = Instant::now();
         self.stats = Default::default();
+        self.logged_node_limit = false;
         self.last_advance = now;
         self.start = now;
         self.nodes_since_start = 0;

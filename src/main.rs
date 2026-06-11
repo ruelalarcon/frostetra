@@ -37,10 +37,17 @@ fn main() {
         Arc::new(serde_json::from_reader(f).unwrap())
     });
 
-    let incoming = futures::stream::repeat_with(|| {
+    let (sender, incoming) = futures::channel::mpsc::unbounded();
+    std::thread::spawn(move || loop {
         let mut line = String::new();
-        std::io::stdin().read_line(&mut line).unwrap();
-        serde_json::from_str(&line).unwrap()
+        let bytes_read = std::io::stdin().read_line(&mut line).unwrap();
+        if bytes_read == 0 {
+            break;
+        }
+        let msg = serde_json::from_str(&line).unwrap();
+        if sender.unbounded_send(msg).is_err() {
+            break;
+        }
     });
 
     let outgoing = futures::sink::unfold((), |_, msg| {
@@ -49,7 +56,6 @@ fn main() {
         async { Ok(()) }
     });
 
-    futures::pin_mut!(incoming);
     futures::pin_mut!(outgoing);
 
     futures::executor::block_on(frostetra::run(incoming, outgoing, config));
