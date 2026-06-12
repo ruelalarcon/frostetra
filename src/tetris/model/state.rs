@@ -33,7 +33,8 @@ impl GameState {
             self.board.remove_lines(cleared_mask);
             perfect_clear = self.board.cols.iter().all(|&c| c == 0);
             let hard = cleared_mask.count_ones() == 4
-                || (rules.allspin_b2b && !matches!(placement.spin, Spin::None))
+                || (!matches!(placement.spin, Spin::None)
+                    && (matches!(placement.location.piece, Piece::T) || rules.allspin_b2b))
                 || (rules.allclear_b2b && perfect_clear);
             self.back_to_back = if hard {
                 self.back_to_back.saturating_add(1)
