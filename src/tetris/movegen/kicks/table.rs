@@ -13,6 +13,7 @@ pub struct KickTransition {
 }
 
 pub type TransitionKicks = &'static [KickTransition];
+pub const NO_TRANSITIONS: TransitionKicks = &[];
 
 #[derive(Clone, Copy, Debug)]
 pub struct KickTable {

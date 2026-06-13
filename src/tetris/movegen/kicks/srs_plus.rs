@@ -1,6 +1,7 @@
 use crate::tetris::model::Rotation;
-use crate::tetris::movegen::kicks::srs::ZERO_180_KICKS;
-use crate::tetris::movegen::kicks::table::{KickTable, KickTransition, TransitionKicks};
+use crate::tetris::movegen::kicks::table::{
+    KickTable, KickTransition, TransitionKicks, NO_TRANSITIONS,
+};
 
 use Rotation::*;
 
@@ -132,7 +133,7 @@ pub const I_KICKS: TransitionKicks = &[
 
 pub const SRS_PLUS: KickTable = KickTable {
     i: I_KICKS,
-    o: ZERO_180_KICKS,
+    o: NO_TRANSITIONS,
     j: JLSTZ_PLUS_KICKS,
     l: JLSTZ_PLUS_KICKS,
     s: JLSTZ_PLUS_KICKS,
