@@ -149,6 +149,10 @@ impl<E: Evaluation> Dag<E> {
 }
 
 impl<E: Evaluation> Selection<'_, E> {
+    pub fn depth(&self) -> usize {
+        self.layers.len()
+    }
+
     pub fn state(&self) -> (GameState, Option<Piece>) {
         (self.game_state, self.layers.last().unwrap().kind.piece())
     }

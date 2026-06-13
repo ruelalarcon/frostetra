@@ -15,7 +15,7 @@ pub struct BotSyncronizer {
 }
 
 impl BotSyncronizer {
-    const NODE_LIMIT: u64 = 2_000_000;
+    const NODE_LIMIT: u64 = 3_000_000;
 
     pub fn new(log_sender: UnboundedSender<String>) -> Self {
         BotSyncronizer {
@@ -118,8 +118,9 @@ impl BotSyncronizer {
             if !state.logged_node_limit && state.stats.nodes >= state.node_limit {
                 state.logged_node_limit = true;
                 let _ = self.log_sender.unbounded_send(format!(
-                    "node cap reached: {} nodes; background search paused until the next piece",
-                    state.node_limit
+                    "node cap reached: {} nodes; max expanded depth: {} plies; background search paused until the next piece",
+                    state.node_limit,
+                    state.stats.max_depth
                 ));
             }
         }

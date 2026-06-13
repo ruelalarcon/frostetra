@@ -48,6 +48,7 @@ impl Behavior for Freestyle {
             options.config.freestyle_exploitation,
             &options.rules,
         ) {
+            new_stats.max_depth = node.depth();
             let (state, next) = node.state();
             let next_possibilities = next.map(EnumSet::only).unwrap_or(state.bag);
 
