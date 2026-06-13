@@ -8,7 +8,7 @@ use serde_json::Value;
 use crate::bot::BotConfig;
 use crate::protocol::sbp::{BotMessage, Capabilities, FrontendMessage, Randomizer, Start};
 use crate::runtime::bot_factory::create_bot;
-use crate::runtime::worker_pool::BotSyncronizer;
+use crate::runtime::worker_pool::BotSynchronizer;
 use crate::tetris::model::rules::GameRules;
 
 pub async fn run(
@@ -36,7 +36,7 @@ pub async fn run(
     let mut incoming = incoming.fuse();
     let (log_sender, log_receiver) = mpsc::unbounded();
     let mut log_receiver = log_receiver.fuse();
-    let bot = Arc::new(BotSyncronizer::new(log_sender));
+    let bot = Arc::new(BotSynchronizer::new(log_sender));
     spawn_workers(&bot);
 
     let mut waiting_on_first_piece = None;
@@ -74,7 +74,7 @@ pub async fn run(
 async fn handle_frontend_message(
     msg: FrontendMessage,
     outgoing: &mut (impl Sink<BotMessage, Error = Infallible> + Unpin),
-    bot: &Arc<BotSyncronizer>,
+    bot: &Arc<BotSynchronizer>,
     waiting_on_first_piece: &mut Option<Start>,
     game_rules: &mut GameRules,
     randomizer: &mut Randomizer,
@@ -166,7 +166,7 @@ async fn send_logs(
     }
 }
 
-fn spawn_workers(bot: &Arc<BotSyncronizer>) {
+fn spawn_workers(bot: &Arc<BotSynchronizer>) {
     for _ in 0..1 {
         let bot = bot.clone();
         std::thread::spawn(move || bot.work_loop());

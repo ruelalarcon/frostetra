@@ -7,18 +7,18 @@ use crate::bot::{Bot, Statistics};
 use crate::protocol::sbp::SearchInfo;
 use crate::tetris::model::{Piece, Placement};
 
-pub struct BotSyncronizer {
+pub struct BotSynchronizer {
     state: Mutex<State>,
     blocker: Condvar,
     bot: RwLock<Option<Bot>>,
     log_sender: UnboundedSender<String>,
 }
 
-impl BotSyncronizer {
+impl BotSynchronizer {
     const NODE_LIMIT: u64 = 3_000_000;
 
     pub fn new(log_sender: UnboundedSender<String>) -> Self {
-        BotSyncronizer {
+        BotSynchronizer {
             state: Mutex::new(State {
                 stats: Default::default(),
                 last_advance: Instant::now(),
