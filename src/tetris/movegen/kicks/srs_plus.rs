@@ -91,12 +91,12 @@ pub const I_KICKS: TransitionKicks = &[
     KickTransition {
         from: South,
         to: West,
-        kicks: &[(-1, 1), (1, 1), (-2, 1), (1, 0), (-2, 0)],
+        kicks: &[(-1, 0), (1, 0), (-2, 0), (1, 1), (-2, -2)],
     },
     KickTransition {
         from: West,
         to: South,
-        kicks: &[(1, -1), (-1, -1), (2, -1), (-1, 0), (2, 0)],
+        kicks: &[(1, 0), (2, 0), (-1, 0), (2, 2), (-1, -1)],
     },
     KickTransition {
         from: West,
