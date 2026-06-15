@@ -39,7 +39,7 @@ impl Bot {
         Bot {
             current: root,
             queue: queue.iter().copied().collect(),
-            behavior: BehaviorEnum::new(options.config.behavior, &options, root, queue),
+            behavior: BehaviorEnum::new(options.config.initial_behavior, &options, root, queue),
             options,
             bag_tracker,
             consumed_pieces: 1,

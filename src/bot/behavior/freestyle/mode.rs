@@ -45,7 +45,7 @@ impl Behavior for Freestyle {
 
         if let Some(node) = self.dag.select(
             options.speculate,
-            options.config.freestyle_exploitation,
+            options.config.freestyle.exploitation,
             &options.rules,
         ) {
             new_stats.max_depth = node.depth();
@@ -75,7 +75,7 @@ impl Behavior for Freestyle {
                         let info = state.advance(next, mv, &options.rules);
 
                         let (eval, reward) =
-                            evaluate(&options.config.weights, state, &info, sd_distance);
+                            evaluate(&options.config.freestyle.weights, state, &info, sd_distance);
 
                         children[next].push(ChildData {
                             resulting_state: state,

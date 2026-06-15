@@ -88,11 +88,23 @@ Frostetra itself reads SBP messages from stdin and writes SBP messages to
 stdout. It does not draw a board, own a game loop, or provide a human-facing UI;
 those responsibilities belong to the runner.
 
-## Freestyle Configuration
+## Configuration
 
-Frostetra uses an embedded default config from
-`src/bot/behavior/freestyle/default_config.json` for its current freestyle
-behavior. You can provide a replacement JSON file with:
+Frostetra uses an embedded default bot config from `src/bot/default_config.json`.
+The config selects the initial behavior and scopes behavior-specific settings
+under that behavior name. A minimal override can name only the starting
+behavior:
+
+```json
+{
+  "initial_behavior": "freestyle"
+}
+```
+
+User config files are applied over the embedded defaults, so a config containing
+only `"initial_behavior"` still uses the default freestyle settings. To override
+freestyle settings, provide the full nested `freestyle` object shown in the
+default config. You can provide a replacement JSON file with:
 
 ```bash
 cargo run --release -- --config path/to/config.json
