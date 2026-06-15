@@ -4,10 +4,13 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::bot::behavior::freestyle;
+use crate::bot::behavior::BehaviorKind;
 use crate::tetris::model::rules::GameRules;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BotConfig {
+    #[serde(default)]
+    pub behavior: BehaviorKind,
     pub weights: freestyle::Weights,
     pub freestyle_exploitation: f64,
 }

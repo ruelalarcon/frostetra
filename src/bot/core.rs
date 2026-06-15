@@ -2,8 +2,7 @@ use std::collections::VecDeque;
 
 use enumset::EnumSet;
 
-use crate::bot::behavior::freestyle::Freestyle;
-use crate::bot::behavior::{Behavior, BehaviorEnum, BehaviorSwitch};
+use crate::bot::behavior::{Behavior, BehaviorEnum, BehaviorKind, BehaviorSwitch};
 use crate::bot::{BotOptions, Statistics};
 use crate::tetris::model::{GameState, Piece, Placement};
 use crate::tetris::randomizer::seven_bag::SevenBagTracker;
@@ -40,7 +39,7 @@ impl Bot {
         Bot {
             current: root,
             queue: queue.iter().copied().collect(),
-            behavior: Freestyle::new(&options, root, queue).into(),
+            behavior: BehaviorEnum::new(options.config.behavior, &options, root, queue),
             options,
             bag_tracker,
             consumed_pieces: 1,
@@ -87,12 +86,7 @@ impl Bot {
 
     fn switch(&mut self, to: BehaviorSwitch) {
         puffin::profile_function!();
-        match to {
-            BehaviorSwitch::Freestyle => {
-                self.behavior =
-                    Freestyle::new(&self.options, self.current, self.queue.make_contiguous()).into()
-            }
-        }
+        self.rebuild_behavior(to.target());
     }
 
     fn maybe_start_speculation(&mut self) -> bool {
@@ -113,9 +107,17 @@ impl Bot {
             self.logs.push(speculation_log(bag));
             self.logged_speculation_start = true;
         }
-        self.behavior =
-            Freestyle::new(&self.options, self.current, self.queue.make_contiguous()).into();
+        self.rebuild_behavior(self.behavior.kind());
         true
+    }
+
+    fn rebuild_behavior(&mut self, kind: BehaviorKind) {
+        self.behavior = BehaviorEnum::new(
+            kind,
+            &self.options,
+            self.current,
+            self.queue.make_contiguous(),
+        );
     }
 }
 
