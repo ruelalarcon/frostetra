@@ -22,9 +22,11 @@ freestyle evaluator, currently running the same weights as Cold Clear 2.
 - Sonic drop rule support for `only` and `allow`.
 - Configurable spawn position.
 - Column-major bitboard board representation.
-- Worker-thread search loop with search statistics emitted through SBP `info`
-  messages.
-- Optional JSON configuration for the current freestyle behavior.
+- Configurable search execution: background worker search for normal play or
+  deterministic per-suggestion budgets for simulation and optimization.
+- Search statistics emitted through SBP `info` messages.
+- Optional JSON configuration for search policy, behavior selection, and
+  behavior-specific evaluator settings.
 
 ## Requirements
 
@@ -90,21 +92,29 @@ those responsibilities belong to the runner.
 
 ## Configuration
 
-Frostetra uses an embedded default bot config from `src/bot/default_config.json`.
-The config selects the initial behavior and scopes behavior-specific settings
-under that behavior name. A minimal override can name only the starting
-behavior:
+Frostetra uses an embedded default config from `src/config/default.json`. User
+config files are applied over the embedded defaults, so small override files can
+change only the fields they care about.
+
+The config is split into three top-level sections:
+
+- `behavior`: selects the active bot behavior.
+- `search`: controls search randomness and search budgeting.
+- `behaviors`: contains behavior-specific settings such as freestyle evaluator
+  weights.
+
+A minimal override can name only the starting behavior:
 
 ```json
 {
-  "initial_behavior": "freestyle"
+  "behavior": {
+    "initial": "freestyle"
+  }
 }
 ```
 
-User config files are applied over the embedded defaults, so a config containing
-only `"initial_behavior"` still uses the default freestyle settings. To override
-freestyle settings, provide the full nested `freestyle` object shown in the
-default config. You can provide a replacement JSON file with:
+To override freestyle settings, provide the nested `behaviors.freestyle` object
+shown in the default config. You can provide a replacement JSON file with:
 
 ```bash
 cargo run --release -- --config path/to/config.json
@@ -115,6 +125,72 @@ Or, when launching a compiled binary:
 ```bash
 target/release/frostetra --config path/to/config.json
 ```
+
+### Search Policy And Determinism
+
+By default, Frostetra uses background search:
+
+```json
+{
+  "search": {
+    "rng": {
+      "mode": "entropy"
+    },
+    "budget": {
+      "mode": "background",
+      "node_limit": 3000000
+    }
+  }
+}
+```
+
+In background mode, Frostetra searches continuously on a worker thread until the
+configured node cap is reached. `suggest` returns the current best move from the
+tree at the time the runner asks. This is responsive for real play, but the exact
+amount of completed search can vary with timing.
+
+For simulations, evaluator tuning, and ML optimization, use a seeded RNG and a
+per-suggestion budget:
+
+```json
+{
+  "search": {
+    "rng": {
+      "mode": "seeded",
+      "seed": 12345
+    },
+    "budget": {
+      "mode": "iterations_per_suggest",
+      "iterations": 10000
+    }
+  }
+}
+```
+
+In `iterations_per_suggest` mode, Frostetra does not start the background worker.
+Each `suggest` request runs exactly the configured number of search iterations
+synchronously, then returns the suggestion. `nodes_per_suggest` is also available
+when you prefer a node-count budget:
+
+```json
+{
+  "search": {
+    "rng": {
+      "mode": "seeded",
+      "seed": 12345
+    },
+    "budget": {
+      "mode": "nodes_per_suggest",
+      "nodes": 50000
+    }
+  }
+}
+```
+
+This makes move decisions reproducible for the same config, rules, start state,
+piece stream, and SBP message sequence. Determinism is useful for optimizers
+because it keeps evaluator weight comparisons from being polluted by timing or
+ambient RNG differences.
 
 ## Protocol Capabilities
 
@@ -151,7 +227,8 @@ Frontend / runner
   -> SBP JSON over stdin/stdout
   -> src/main.rs
   -> runtime::dispatcher
-  -> runtime::worker_pool
+  -> runtime::bot_session
+  -> bot::BotRunner
   -> bot::Bot
   -> bot::behavior::freestyle
   -> search::dag
@@ -161,12 +238,15 @@ Frontend / runner
 
 Main modules:
 
+- `config/` owns the global bot config, embedded defaults, search policy config,
+  and behavior config layout.
 - `protocol/` contains SBP serde message types.
-- `runtime/` owns process orchestration, message dispatch, worker threads, and
-  SBP-to-bot adaptation.
-- `bot/` owns bot state, behavior selection, configuration, and statistics.
+- `runtime/` owns process orchestration, message dispatch, configured bot
+  sessions, optional worker-thread search, and SBP-to-bot adaptation.
+- `bot/` owns bot state, behavior selection, runner state, and statistics.
 - `bot/behavior/freestyle/` contains the default evaluator and feature scoring.
-- `search/` contains the transposition-aware game tree.
+- `search/` contains deterministic search context/RNG plumbing and the
+  transposition-aware game tree.
 - `tetris/model/` contains board, piece, placement, rotation, spin, and rule
   types.
 - `tetris/movegen/` contains legal placement generation and kick handling.

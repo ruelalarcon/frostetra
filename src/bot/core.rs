@@ -4,6 +4,7 @@ use enumset::EnumSet;
 
 use crate::bot::behavior::{Behavior, BehaviorEnum, BehaviorKind, BehaviorSwitch};
 use crate::bot::{BotOptions, Statistics};
+use crate::search::SearchContext;
 use crate::tetris::model::{GameState, Piece, Placement};
 use crate::tetris::randomizer::seven_bag::SevenBagTracker;
 
@@ -39,7 +40,7 @@ impl Bot {
         Bot {
             current: root,
             queue: queue.iter().copied().collect(),
-            behavior: BehaviorEnum::new(options.config.initial_behavior, &options, root, queue),
+            behavior: BehaviorEnum::new(options.config.behavior.initial, &options, root, queue),
             options,
             bag_tracker,
             consumed_pieces: 1,
@@ -75,9 +76,9 @@ impl Bot {
         self.behavior.suggest(&self.options)
     }
 
-    pub fn do_work(&self) -> Statistics {
+    pub fn step_search(&mut self, context: &mut SearchContext) -> Statistics {
         puffin::profile_function!();
-        self.behavior.do_work(&self.options)
+        self.behavior.step_search(&self.options, context)
     }
 
     pub fn drain_logs(&mut self) -> Vec<String> {

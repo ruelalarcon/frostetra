@@ -3,6 +3,7 @@ use enum_map::EnumMap;
 use once_cell::sync::Lazy;
 use ouroboros::self_referencing;
 
+use crate::search::SearchContext;
 use crate::tetris::model::rules::GameRules;
 use crate::tetris::model::Placement;
 use crate::tetris::model::{GameState, Piece};
@@ -129,6 +130,7 @@ impl<E: Evaluation> Dag<E> {
         speculate: bool,
         exploration: f64,
         rules: &GameRules,
+        context: &mut SearchContext,
     ) -> Option<Selection<'_, E>> {
         puffin::profile_function!();
         let mut layers = vec![&*self.top_layer];
@@ -136,7 +138,10 @@ impl<E: Evaluation> Dag<E> {
         loop {
             let &layer = layers.last().unwrap();
 
-            match layer.kind.select(&game_state, speculate, exploration) {
+            match layer
+                .kind
+                .select(&game_state, speculate, exploration, context)
+            {
                 SelectResult::Failed => return None,
                 SelectResult::Done => return Some(Selection { layers, game_state }),
                 SelectResult::Advance(next, placement) => {
@@ -191,16 +196,16 @@ pub(super) fn update_child<E: Evaluation>(
 
     list[index].cached_eval = child_eval + list[index].reward;
 
-    if index > 0 && list[index - 1].cached_eval < list[index].cached_eval {
+    if index > 0 && child_precedes(&list[index], &list[index - 1]) {
         let hole = list[index];
-        while index > 0 && list[index - 1].cached_eval < hole.cached_eval {
+        while index > 0 && child_precedes(&hole, &list[index - 1]) {
             list[index] = list[index - 1];
             index -= 1;
         }
         list[index] = hole;
-    } else if index < list.len() - 1 && list[index + 1].cached_eval > list[index].cached_eval {
+    } else if index < list.len() - 1 && child_precedes(&list[index + 1], &list[index]) {
         let hole = list[index];
-        while index < list.len() - 1 && list[index + 1].cached_eval > hole.cached_eval {
+        while index < list.len() - 1 && child_precedes(&list[index + 1], &hole) {
             list[index] = list[index + 1];
             index += 1;
         }
@@ -208,6 +213,11 @@ pub(super) fn update_child<E: Evaluation>(
     }
 
     index == 0
+}
+
+fn child_precedes<E: Evaluation>(left: &Child<E>, right: &Child<E>) -> bool {
+    left.cached_eval > right.cached_eval
+        || (left.cached_eval == right.cached_eval && left.mv.sort_key() < right.mv.sort_key())
 }
 
 impl<E: Evaluation> WithBump<E> {
@@ -250,11 +260,17 @@ impl<E: Evaluation> WithBump<E> {
         })
     }
 
-    fn select(&self, game_state: &GameState, speculate: bool, exploration: f64) -> SelectResult {
+    fn select(
+        &self,
+        game_state: &GameState,
+        speculate: bool,
+        exploration: f64,
+        context: &mut SearchContext,
+    ) -> SelectResult {
         puffin::profile_function!();
         self.with(|this| match this.data {
-            LayerKind::Known(l) => l.select(game_state, exploration),
-            LayerKind::Speculated(l) if speculate => l.select(game_state, exploration),
+            LayerKind::Known(l) => l.select(game_state, exploration, context),
+            LayerKind::Speculated(l) if speculate => l.select(game_state, exploration, context),
             LayerKind::Speculated(_) => SelectResult::Failed,
         })
     }

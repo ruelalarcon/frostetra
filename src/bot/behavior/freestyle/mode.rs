@@ -5,7 +5,7 @@ use crate::bot::behavior::freestyle::evaluator::evaluate;
 use crate::bot::behavior::freestyle::score::Eval;
 use crate::bot::behavior::{Behavior, BehaviorSwitch};
 use crate::bot::{BotOptions, Statistics};
-use crate::search::{ChildData, Dag};
+use crate::search::{ChildData, Dag, SearchContext};
 use crate::tetris::model::{GameState, Piece, Placement};
 use crate::tetris::movegen::find_moves;
 
@@ -38,15 +38,16 @@ impl Behavior for Freestyle {
         self.dag.suggest()
     }
 
-    fn do_work(&self, options: &BotOptions) -> Statistics {
+    fn step_search(&mut self, options: &BotOptions, context: &mut SearchContext) -> Statistics {
         puffin::profile_function!();
         let mut new_stats = Statistics::default();
         new_stats.selections += 1;
 
         if let Some(node) = self.dag.select(
             options.speculate,
-            options.config.freestyle.exploitation,
+            options.config.behaviors.freestyle.exploitation,
             &options.rules,
+            context,
         ) {
             new_stats.max_depth = node.depth();
             let (state, next) = node.state();
@@ -74,8 +75,12 @@ impl Behavior for Freestyle {
                         let mut state = state;
                         let info = state.advance(next, mv, &options.rules);
 
-                        let (eval, reward) =
-                            evaluate(&options.config.freestyle.weights, state, &info, sd_distance);
+                        let (eval, reward) = evaluate(
+                            &options.config.behaviors.freestyle.weights,
+                            state,
+                            &info,
+                            sd_distance,
+                        );
 
                         children[next].push(ChildData {
                             resulting_state: state,

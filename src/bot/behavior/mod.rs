@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::bot::behavior::freestyle::Freestyle;
 use crate::bot::{BotOptions, Statistics};
+use crate::search::SearchContext;
 use crate::tetris::model::{GameState, Piece, Placement};
 
 #[enum_dispatch]
@@ -48,7 +49,7 @@ pub(super) trait Behavior {
     fn advance(&mut self, options: &BotOptions, mv: Placement) -> Option<BehaviorSwitch>;
     fn new_piece(&mut self, options: &BotOptions, piece: Piece);
     fn suggest(&self, options: &BotOptions) -> Vec<Placement>;
-    fn do_work(&self, options: &BotOptions) -> Statistics;
+    fn step_search(&mut self, options: &BotOptions, context: &mut SearchContext) -> Statistics;
 }
 
 #[allow(dead_code)]

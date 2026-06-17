@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -12,9 +11,26 @@ use parking_lot::RwLockWriteGuard;
 
 use crate::tetris::model::GameState;
 
-pub struct StateMap<V, S = ahash::RandomState> {
+pub struct StateMap<V, S = StableStateHasher> {
     hasher: S,
-    buckets: Box<[RwLock<IntMap<u64, V>>; SHARDS]>,
+    buckets: Box<[RwLock<IntMap<u64, V>>]>,
+}
+
+#[derive(Clone)]
+pub struct StableStateHasher(ahash::RandomState);
+
+impl Default for StableStateHasher {
+    fn default() -> Self {
+        StableStateHasher(ahash::RandomState::with_seeds(1, 2, 3, 4))
+    }
+}
+
+impl BuildHasher for StableStateHasher {
+    type Hasher = <ahash::RandomState as BuildHasher>::Hasher;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        self.0.build_hasher()
+    }
 }
 
 const SHARD_INDEX_BITS: usize = 12;
@@ -27,9 +43,7 @@ impl<V, S: Default> Default for StateMap<V, S> {
             hasher: Default::default(),
             buckets: std::iter::repeat_with(|| RwLock::new(IntMap::default()))
                 .take(SHARDS)
-                .collect::<Box<_>>()
-                .try_into()
-                .unwrap_or_else(|_| unreachable!()),
+                .collect(),
         }
     }
 }
@@ -80,6 +94,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
             hasher: self.hasher,
             buckets: self
                 .buckets
+                .into_vec()
                 .into_iter()
                 .map(|shard| {
                     RwLock::new(
@@ -90,9 +105,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
                             .collect(),
                     )
                 })
-                .collect::<Box<_>>()
-                .try_into()
-                .unwrap_or_else(|_| unreachable!()),
+                .collect(),
         }
     }
 }

@@ -2,9 +2,9 @@ use std::sync::atomic::{self, AtomicBool};
 
 use bumpalo_herd::{Herd, Member};
 use enum_map::EnumMap;
-use rand::prelude::*;
 
 use crate::search::map::StateMap;
+use crate::search::SearchContext;
 use crate::tetris::model::{GameState, Piece, Placement};
 
 use super::{
@@ -43,12 +43,21 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
 
         let mut candidates: Vec<&_> = vec![];
         candidates.extend(children.first());
-        candidates.sort_by(|a, b| a.cached_eval.partial_cmp(&b.cached_eval).unwrap().reverse());
+        candidates.sort_by(|a, b| {
+            b.cached_eval
+                .cmp(&a.cached_eval)
+                .then_with(|| a.mv.sort_key().cmp(&b.mv.sort_key()))
+        });
 
         candidates.into_iter().map(|c| c.mv).collect()
     }
 
-    pub fn select(&self, game_state: &GameState, exploration: f64) -> SelectResult {
+    pub fn select(
+        &self,
+        game_state: &GameState,
+        exploration: f64,
+        context: &mut SearchContext,
+    ) -> SelectResult {
         puffin::profile_function!();
         let node = self
             .states
@@ -70,7 +79,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
             return SelectResult::Failed;
         }
 
-        let s: f64 = thread_rng().gen();
+        let s = context.rng.gen_f64();
         let i = ((-s.ln() / exploration) % children.len() as f64) as usize;
         SelectResult::Advance(self.piece, children[i].mv)
     }
@@ -131,7 +140,11 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
             }
         }
 
-        childs.sort_by(|a, b| a.cached_eval.cmp(&b.cached_eval).reverse());
+        childs.sort_by(|a, b| {
+            b.cached_eval
+                .cmp(&a.cached_eval)
+                .then_with(|| a.mv.sort_key().cmp(&b.mv.sort_key()))
+        });
 
         parent.eval = E::average(std::iter::once(childs.first().map(|c| c.cached_eval)));
         parent.children = Some(herd.get().alloc_slice_copy(&childs));

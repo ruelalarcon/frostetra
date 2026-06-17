@@ -4,9 +4,9 @@ use std::sync::atomic::{self, AtomicBool};
 use bumpalo_herd::{Herd, Member};
 use enum_map::EnumMap;
 use enumset::EnumSet;
-use rand::prelude::*;
 
 use crate::search::map::StateMap;
+use crate::search::SearchContext;
 use crate::tetris::model::{GameState, Piece, Placement};
 
 use super::{
@@ -49,12 +49,21 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         for piece in state.bag {
             candidates.extend(children[piece].first());
         }
-        candidates.sort_by(|a, b| a.cached_eval.partial_cmp(&b.cached_eval).unwrap().reverse());
+        candidates.sort_by(|a, b| {
+            b.cached_eval
+                .cmp(&a.cached_eval)
+                .then_with(|| a.mv.sort_key().cmp(&b.mv.sort_key()))
+        });
 
         candidates.into_iter().map(|c| c.mv).collect()
     }
 
-    pub fn select(&self, game_state: &GameState, exploration: f64) -> SelectResult {
+    pub fn select(
+        &self,
+        game_state: &GameState,
+        exploration: f64,
+        context: &mut SearchContext,
+    ) -> SelectResult {
         puffin::profile_function!();
         let node = self
             .states
@@ -75,14 +84,14 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         let next = game_state
             .bag
             .iter()
-            .nth(thread_rng().gen_range(0..game_state.bag.len()))
+            .nth(context.rng.gen_index(game_state.bag.len()))
             .unwrap();
 
         if children[next].is_empty() {
             return SelectResult::Failed;
         }
 
-        let s: f64 = thread_rng().gen();
+        let s = context.rng.gen_f64();
         let i = ((-s.ln() / exploration) % children[next].len() as f64) as usize;
         SelectResult::Advance(next, children[next][i].mv)
     }
@@ -155,7 +164,11 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         };
 
         for p in EnumSet::all() {
-            children[p].sort_by(|a, b| a.cached_eval.cmp(&b.cached_eval).reverse());
+            children[p].sort_by(|a, b| {
+                b.cached_eval
+                    .cmp(&a.cached_eval)
+                    .then_with(|| a.mv.sort_key().cmp(&b.mv.sort_key()))
+            });
         }
 
         let next_possibilities = parent.bag;

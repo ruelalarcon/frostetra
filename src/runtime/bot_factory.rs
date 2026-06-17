@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use enumset::EnumSet;
 
-use crate::bot::{Bot, BotConfig, BotOptions};
+use crate::bot::{Bot, BotOptions};
+use crate::config::BotConfig;
 use crate::protocol::sbp::{Randomizer, Start};
 use crate::tetris::model::rules::GameRules;
 use crate::tetris::model::GameState;

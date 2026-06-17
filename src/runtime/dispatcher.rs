@@ -5,10 +5,10 @@ use futures::channel::mpsc;
 use futures::prelude::*;
 use serde_json::Value;
 
-use crate::bot::BotConfig;
+use crate::config::BotConfig;
 use crate::protocol::sbp::{BotMessage, Capabilities, FrontendMessage, Randomizer, Start};
 use crate::runtime::bot_factory::create_bot;
-use crate::runtime::worker_pool::BotSynchronizer;
+use crate::runtime::bot_session::BotSession;
 use crate::tetris::model::rules::GameRules;
 
 pub async fn run(
@@ -36,8 +36,10 @@ pub async fn run(
     let mut incoming = incoming.fuse();
     let (log_sender, log_receiver) = mpsc::unbounded();
     let mut log_receiver = log_receiver.fuse();
-    let bot = Arc::new(BotSynchronizer::new(log_sender));
-    spawn_workers(&bot);
+    let bot = Arc::new(BotSession::new(log_sender, config.search.clone()));
+    if bot.starts_worker() {
+        spawn_workers(&bot);
+    }
 
     let mut waiting_on_first_piece = None;
     let mut game_rules = GameRules::default();
@@ -74,7 +76,7 @@ pub async fn run(
 async fn handle_frontend_message(
     msg: FrontendMessage,
     outgoing: &mut (impl Sink<BotMessage, Error = Infallible> + Unpin),
-    bot: &Arc<BotSynchronizer>,
+    bot: &Arc<BotSession>,
     waiting_on_first_piece: &mut Option<Start>,
     game_rules: &mut GameRules,
     randomizer: &mut Randomizer,
@@ -166,7 +168,7 @@ async fn send_logs(
     }
 }
 
-fn spawn_workers(bot: &Arc<BotSynchronizer>) {
+fn spawn_workers(bot: &Arc<BotSession>) {
     for _ in 0..1 {
         let bot = bot.clone();
         std::thread::spawn(move || bot.work_loop());

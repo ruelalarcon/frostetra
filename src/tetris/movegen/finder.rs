@@ -165,6 +165,7 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
     }
 
     locks.extend(underground_locks.drain().map(|(_, value)| value));
+    locks.sort_by_key(|(mv, soft_drops)| (mv.sort_key(), *soft_drops));
     locks
 }
 
