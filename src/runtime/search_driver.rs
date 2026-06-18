@@ -46,7 +46,7 @@ impl SearchDriver {
 
     pub fn suggest(
         &self,
-        runner: &mut BotRunner,
+        runner: &BotRunner,
         state: &mut SearchState,
     ) -> (Vec<Placement>, SearchInfo) {
         match self {
@@ -62,11 +62,7 @@ pub struct BackgroundSearchDriver {
 }
 
 impl BackgroundSearchDriver {
-    fn suggest(
-        &self,
-        runner: &mut BotRunner,
-        state: &mut SearchState,
-    ) -> (Vec<Placement>, SearchInfo) {
+    fn suggest(&self, runner: &BotRunner, state: &mut SearchState) -> (Vec<Placement>, SearchInfo) {
         let mut suggestion = runner.suggest();
         if suggestion.is_empty() {
             state.accumulate(runner.step());
@@ -83,11 +79,7 @@ pub struct BudgetedSearchDriver {
 }
 
 impl BudgetedSearchDriver {
-    fn suggest(
-        &self,
-        runner: &mut BotRunner,
-        state: &mut SearchState,
-    ) -> (Vec<Placement>, SearchInfo) {
+    fn suggest(&self, runner: &BotRunner, state: &mut SearchState) -> (Vec<Placement>, SearchInfo) {
         state.accumulate(runner.run_for(self.budget));
         let suggestion = runner.suggest();
         (suggestion, state.search_info())

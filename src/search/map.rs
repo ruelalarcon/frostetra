@@ -21,7 +21,12 @@ pub struct StableStateHasher(ahash::RandomState);
 
 impl Default for StableStateHasher {
     fn default() -> Self {
-        StableStateHasher(ahash::RandomState::with_seeds(1, 2, 3, 4))
+        StableStateHasher(ahash::RandomState::with_seeds(
+            0x243f_6a88_85a3_08d3,
+            0x1319_8a2e_0370_7344,
+            0xa409_3822_299f_31d0,
+            0x082e_fa98_ec4e_6c89,
+        ))
     }
 }
 

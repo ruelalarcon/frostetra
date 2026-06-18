@@ -30,11 +30,14 @@ impl BotRunner {
         }
     }
 
-    pub fn step(&mut self) -> Statistics {
-        self.bot.step_search(&mut self.context)
+    /// Search uses interior mutability in the DAG and RNG so background
+    /// expansion can share a read lock with suggestions. Gameplay mutations
+    /// (`advance`/`new_piece`) still require exclusive access to the runner.
+    pub fn step(&self) -> Statistics {
+        self.bot.step_search(&self.context)
     }
 
-    pub fn run_for(&mut self, budget: SearchBudget) -> Statistics {
+    pub fn run_for(&self, budget: SearchBudget) -> Statistics {
         match budget {
             SearchBudget::Iterations(iterations) => {
                 let mut stats = Statistics::default();

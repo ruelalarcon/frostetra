@@ -52,8 +52,8 @@ impl BotSession {
     }
 
     pub fn suggest(&self) -> Option<(Vec<Placement>, SearchInfo)> {
-        let mut runner = self.runner.write();
-        runner.as_mut().map(|runner| {
+        let runner = self.runner.read();
+        runner.as_ref().map(|runner| {
             let mut state = self.state.lock();
             self.driver.suggest(runner, &mut state)
         })
@@ -92,8 +92,8 @@ impl BotSession {
                 }
             }
 
-            let mut runner_guard = self.runner.write();
-            let runner = match &mut *runner_guard {
+            let runner_guard = self.runner.read();
+            let runner = match &*runner_guard {
                 Some(runner) => runner,
                 None => {
                     drop(runner_guard);
@@ -116,6 +116,7 @@ impl BotSession {
                     state.stats.max_depth
                 ));
             }
+            std::thread::yield_now();
         }
     }
 }

@@ -38,7 +38,7 @@ impl Behavior for Freestyle {
         self.dag.suggest()
     }
 
-    fn step_search(&mut self, options: &BotOptions, context: &mut SearchContext) -> Statistics {
+    fn step_search(&self, options: &BotOptions, context: &SearchContext) -> Statistics {
         puffin::profile_function!();
         let mut new_stats = Statistics::default();
         new_stats.selections += 1;

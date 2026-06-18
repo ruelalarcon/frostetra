@@ -130,7 +130,7 @@ impl<E: Evaluation> Dag<E> {
         speculate: bool,
         exploration: f64,
         rules: &GameRules,
-        context: &mut SearchContext,
+        context: &SearchContext,
     ) -> Option<Selection<'_, E>> {
         puffin::profile_function!();
         let mut layers = vec![&*self.top_layer];
@@ -265,7 +265,7 @@ impl<E: Evaluation> WithBump<E> {
         game_state: &GameState,
         speculate: bool,
         exploration: f64,
-        context: &mut SearchContext,
+        context: &SearchContext,
     ) -> SelectResult {
         puffin::profile_function!();
         self.with(|this| match this.data {

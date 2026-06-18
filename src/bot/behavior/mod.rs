@@ -49,7 +49,7 @@ pub(super) trait Behavior {
     fn advance(&mut self, options: &BotOptions, mv: Placement) -> Option<BehaviorSwitch>;
     fn new_piece(&mut self, options: &BotOptions, piece: Piece);
     fn suggest(&self, options: &BotOptions) -> Vec<Placement>;
-    fn step_search(&mut self, options: &BotOptions, context: &mut SearchContext) -> Statistics;
+    fn step_search(&self, options: &BotOptions, context: &SearchContext) -> Statistics;
 }
 
 #[allow(dead_code)]

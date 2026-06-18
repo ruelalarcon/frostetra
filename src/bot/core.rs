@@ -76,7 +76,7 @@ impl Bot {
         self.behavior.suggest(&self.options)
     }
 
-    pub fn step_search(&mut self, context: &mut SearchContext) -> Statistics {
+    pub fn step_search(&self, context: &SearchContext) -> Statistics {
         puffin::profile_function!();
         self.behavior.step_search(&self.options, context)
     }

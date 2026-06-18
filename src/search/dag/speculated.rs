@@ -62,7 +62,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         &self,
         game_state: &GameState,
         exploration: f64,
-        context: &mut SearchContext,
+        context: &SearchContext,
     ) -> SelectResult {
         puffin::profile_function!();
         let node = self
@@ -84,14 +84,14 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         let next = game_state
             .bag
             .iter()
-            .nth(context.rng.gen_index(game_state.bag.len()))
+            .nth(context.gen_index(game_state.bag.len()))
             .unwrap();
 
         if children[next].is_empty() {
             return SelectResult::Failed;
         }
 
-        let s = context.rng.gen_f64();
+        let s = context.gen_f64();
         let i = ((-s.ln() / exploration) % children[next].len() as f64) as usize;
         SelectResult::Advance(next, children[next][i].mv)
     }
