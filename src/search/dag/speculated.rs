@@ -10,7 +10,8 @@ use crate::search::SearchContext;
 use crate::tetris::model::{GameState, Piece, Placement};
 
 use super::{
-    update_child, BackpropUpdate, Child, ChildData, Evaluation, LayerCommon, SelectResult,
+    update_child, BackpropUpdate, Child, ChildData, Evaluation, LayerCommon, Parent, Parents,
+    SelectResult,
 };
 
 #[derive(Default)]
@@ -19,7 +20,7 @@ pub(super) struct Layer<'bump, E: Evaluation> {
 }
 
 pub(super) struct Node<'bump, E: Evaluation> {
-    pub parents: &'bump [(u64, Placement, Piece)],
+    pub parents: Parents<'bump>,
     pub eval: E,
     pub children: Option<PackedChildren<'bump, E>>,
     pub expanding: AtomicBool,
@@ -35,7 +36,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
 
     pub fn initialize_root(&self, root: &GameState) {
         let _ = self.states.get_or_insert_with(root, || Node {
-            parents: &[],
+            parents: Parents::default(),
             eval: E::default(),
             children: None,
             expanding: AtomicBool::new(false),
@@ -116,20 +117,20 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         let mut node = self
             .states
             .get_or_insert_with(&child.resulting_state, || Node {
-                parents: &[],
+                parents: Parents::default(),
                 eval: child.eval,
                 children: None,
                 expanding: AtomicBool::new(false),
                 bag: child.resulting_state.bag,
             });
-        let new_parent = (parent, child.mv, speculation_piece);
-        node.parents = if node.parents.is_empty() {
-            bump.alloc_slice_copy(&[new_parent])
-        } else {
-            bump.alloc_slice_fill_with(node.parents.len() + 1, |i| {
-                node.parents.get(i).copied().unwrap_or(new_parent)
-            })
-        };
+        node.parents.push(
+            bump,
+            Parent {
+                parent,
+                mv: child.mv,
+                speculation_piece,
+            },
+        );
         node.eval
     }
 
@@ -190,14 +191,14 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
 
         let mut next = vec![];
 
-        for &(grandparent, mv, speculation_piece) in parent.parents {
+        parent.parents.for_each_ordered(|link| {
             next.push(BackpropUpdate {
-                parent: grandparent,
-                mv,
-                speculation_piece,
+                parent: link.parent,
+                mv: link.mv,
+                speculation_piece: link.speculation_piece,
                 child: parent_index,
             });
-        }
+        });
 
         next
     }
@@ -228,14 +229,14 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
                 if parent.eval != eval {
                     parent.eval = eval;
 
-                    for &(parent, mv, speculation_piece) in parent.parents {
+                    parent.parents.for_each_ordered(|link| {
                         new_updates.push(BackpropUpdate {
-                            parent,
-                            mv,
-                            speculation_piece,
+                            parent: link.parent,
+                            mv: link.mv,
+                            speculation_piece: link.speculation_piece,
                             child: update.parent,
                         });
-                    }
+                    });
                 }
             }
         }

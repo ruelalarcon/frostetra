@@ -75,6 +75,47 @@ pub(super) struct BackpropUpdate {
     pub child: u64,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct Parent {
+    pub parent: u64,
+    pub mv: Placement,
+    pub speculation_piece: Piece,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(super) struct Parents<'bump> {
+    head: Option<&'bump ParentLink<'bump>>,
+    len: usize,
+}
+
+struct ParentLink<'bump> {
+    data: Parent,
+    next: Option<&'bump ParentLink<'bump>>,
+}
+
+impl<'bump> Parents<'bump> {
+    pub fn push(&mut self, bump: &bumpalo_herd::Member<'bump>, data: Parent) {
+        let link = bump.alloc(ParentLink {
+            data,
+            next: self.head,
+        });
+        self.head = Some(link);
+        self.len += 1;
+    }
+
+    pub fn for_each_ordered(self, mut f: impl FnMut(Parent)) {
+        let mut parents = Vec::with_capacity(self.len);
+        let mut current = self.head;
+        while let Some(link) = current {
+            parents.push(link.data);
+            current = link.next;
+        }
+        for parent in parents.into_iter().rev() {
+            f(parent);
+        }
+    }
+}
+
 impl<E: Evaluation> Dag<E> {
     pub fn new(root: GameState, queue: &[Piece], locking: bool) -> Self {
         let mut top_layer = LayerCommon::new(locking);

@@ -74,6 +74,7 @@ impl<V, S: Default> Default for StateMap<V, S> {
 
 impl<V, S: Default> StateMap<V, S> {
     pub(crate) fn new(locking: bool) -> Self {
+        let shards = if locking { SHARDS } else { 1 };
         StateMap {
             hasher: Default::default(),
             locking,
@@ -81,7 +82,7 @@ impl<V, S: Default> StateMap<V, S> {
                 lock: RwLock::new(()),
                 map: UnsafeCell::new(IntMap::default()),
             })
-            .take(SHARDS)
+            .take(shards)
             .collect(),
         }
     }
@@ -103,7 +104,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
     }
 
     fn bucket(&self, k: u64) -> &Bucket<V> {
-        &self.buckets[(k >> SHARD_INDEX_SHIFT) as usize % SHARDS]
+        &self.buckets[(k >> SHARD_INDEX_SHIFT) as usize % self.buckets.len()]
     }
 
     pub fn get_raw(&self, k: u64) -> Option<StateReadGuard<'_, V>> {
