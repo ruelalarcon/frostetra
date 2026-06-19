@@ -40,6 +40,7 @@ impl BotSession {
         *self.runner.write() = Some(BotRunner::from_rng_config(
             initial_state,
             &self.search_config.rng,
+            !self.driver.starts_worker(),
         ));
         self.blocker.notify_all();
     }

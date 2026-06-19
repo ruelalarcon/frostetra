@@ -37,8 +37,9 @@ pub struct StateWriteGuard<'a, V> {
     _marker: PhantomData<&'a mut V>,
 }
 
-// Budgeted deterministic search runs on one thread and bypasses the lock.
-// Background search constructs locking maps before worker threads can touch them.
+// Locked maps protect bucket access with `lock`. Local maps may only be used
+// behind BotRunner's thread-owner guard, which is checked before search enters
+// the DAG.
 unsafe impl<V: Send> Sync for Bucket<V> {}
 unsafe impl<V: Send> Send for Bucket<V> {}
 
@@ -72,7 +73,7 @@ impl<V, S: Default> Default for StateMap<V, S> {
 }
 
 impl<V, S: Default> StateMap<V, S> {
-    pub fn new(locking: bool) -> Self {
+    pub(crate) fn new(locking: bool) -> Self {
         StateMap {
             hasher: Default::default(),
             locking,
@@ -108,6 +109,9 @@ impl<V, S: BuildHasher> StateMap<V, S> {
     pub fn get_raw(&self, k: u64) -> Option<StateReadGuard<'_, V>> {
         let bucket = self.bucket(k);
         let lock = self.locking.then(|| bucket.lock.read());
+        // SAFETY: locked maps hold the bucket read lock; local maps have
+        // already passed BotRunner's thread-owner guard before search reached
+        // the DAG.
         let value = unsafe { (&*bucket.map.get()).get(&k)? as *const V };
         Some(StateReadGuard {
             _lock: lock,
@@ -123,6 +127,9 @@ impl<V, S: BuildHasher> StateMap<V, S> {
     pub fn get_raw_mut(&self, k: u64) -> Option<StateWriteGuard<'_, V>> {
         let bucket = self.bucket(k);
         let lock = self.locking.then(|| bucket.lock.write());
+        // SAFETY: locked maps hold the bucket write lock; local maps have
+        // already passed BotRunner's thread-owner guard before search reached
+        // the DAG.
         let value = unsafe { (&mut *bucket.map.get()).get_mut(&k)? as *mut V };
         Some(StateWriteGuard {
             _lock: lock,
@@ -134,6 +141,9 @@ impl<V, S: BuildHasher> StateMap<V, S> {
     pub fn get_raw_or_insert_with(&self, k: u64, f: impl FnOnce() -> V) -> StateWriteGuard<'_, V> {
         let bucket = self.bucket(k);
         let lock = self.locking.then(|| bucket.lock.write());
+        // SAFETY: locked maps hold the bucket write lock; local maps have
+        // already passed BotRunner's thread-owner guard before search reached
+        // the DAG.
         let value = unsafe { (&mut *bucket.map.get()).entry(k).or_insert_with(f) as *mut V };
         StateWriteGuard {
             _lock: lock,
