@@ -85,7 +85,6 @@ pub(super) struct Parent {
 #[derive(Clone, Copy, Default)]
 pub(super) struct Parents<'bump> {
     head: Option<&'bump ParentLink<'bump>>,
-    len: usize,
 }
 
 struct ParentLink<'bump> {
@@ -100,18 +99,13 @@ impl<'bump> Parents<'bump> {
             next: self.head,
         });
         self.head = Some(link);
-        self.len += 1;
     }
 
-    pub fn for_each_ordered(self, mut f: impl FnMut(Parent)) {
-        let mut parents = Vec::with_capacity(self.len);
+    pub fn for_each(self, mut f: impl FnMut(Parent)) {
         let mut current = self.head;
         while let Some(link) = current {
-            parents.push(link.data);
+            f(link.data);
             current = link.next;
-        }
-        for parent in parents.into_iter().rev() {
-            f(parent);
         }
     }
 }

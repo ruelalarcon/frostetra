@@ -155,7 +155,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
 
         let mut next = vec![];
 
-        parent.parents.for_each_ordered(|link| {
+        parent.parents.for_each(|link| {
             next.push(BackpropUpdate {
                 parent: link.parent,
                 mv: link.mv,
@@ -193,7 +193,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
                 if parent.eval != eval {
                     parent.eval = eval;
 
-                    parent.parents.for_each_ordered(|link| {
+                    parent.parents.for_each(|link| {
                         new_updates.push(BackpropUpdate {
                             parent: link.parent,
                             mv: link.mv,

@@ -104,7 +104,11 @@ impl<V, S: BuildHasher> StateMap<V, S> {
     }
 
     fn bucket(&self, k: u64) -> &Bucket<V> {
-        &self.buckets[(k >> SHARD_INDEX_SHIFT) as usize % self.buckets.len()]
+        if self.locking {
+            &self.buckets[(k >> SHARD_INDEX_SHIFT) as usize % SHARDS]
+        } else {
+            &self.buckets[0]
+        }
     }
 
     pub fn get_raw(&self, k: u64) -> Option<StateReadGuard<'_, V>> {
