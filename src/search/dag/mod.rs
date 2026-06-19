@@ -1,6 +1,6 @@
 use bumpalo_herd::Herd;
 use enum_map::EnumMap;
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use ouroboros::self_referencing;
 
 use crate::search::SearchContext;
@@ -36,10 +36,10 @@ pub struct ChildData<E: Evaluation> {
     pub reward: E::Reward,
 }
 
-#[derive(Default)]
 pub(super) struct LayerCommon<E: Evaluation> {
-    next_layer: Lazy<Box<LayerCommon<E>>>,
+    next_layer: OnceCell<Box<LayerCommon<E>>>,
     kind: WithBump<E>,
+    locking: bool,
 }
 
 #[self_referencing]
@@ -76,14 +76,14 @@ pub(super) struct BackpropUpdate {
 }
 
 impl<E: Evaluation> Dag<E> {
-    pub fn new(root: GameState, queue: &[Piece]) -> Self {
-        let mut top_layer = LayerCommon::default();
+    pub fn new(root: GameState, queue: &[Piece], locking: bool) -> Self {
+        let mut top_layer = LayerCommon::new(locking);
         top_layer.kind.initialize_root(&root);
 
         let mut layer = &mut top_layer;
         for &piece in queue {
             layer.kind.despeculate(piece);
-            layer = &mut layer.next_layer;
+            layer = layer.force_next_layer_mut();
         }
 
         Dag {
@@ -103,20 +103,20 @@ impl<E: Evaluation> Dag<E> {
             mv,
             rules,
         );
-        Lazy::force(&top_layer.next_layer);
-        self.top_layer = Lazy::into_value(top_layer.next_layer).unwrap();
+        top_layer.force_next_layer();
+        self.top_layer = top_layer.next_layer.into_inner().unwrap();
         self.top_layer.kind.initialize_root(&self.root);
     }
 
     pub fn add_piece(&mut self, piece: Piece) {
         puffin::profile_function!();
-        let mut layer = &mut self.top_layer;
+        let mut layer = &mut *self.top_layer;
         loop {
             if layer.kind.despeculate(piece) {
                 // TODO: backprop despeculated values
                 return;
             }
-            layer = &mut layer.next_layer;
+            layer = layer.force_next_layer_mut();
         }
     }
 
@@ -146,7 +146,7 @@ impl<E: Evaluation> Dag<E> {
                 SelectResult::Done => return Some(Selection { layers, game_state }),
                 SelectResult::Advance(next, placement) => {
                     game_state.advance(next, placement, rules);
-                    layers.push(&layer.next_layer);
+                    layers.push(layer.force_next_layer());
                 }
             }
         }
@@ -166,9 +166,10 @@ impl<E: Evaluation> Selection<'_, E> {
         puffin::profile_function!();
         let mut layers = self.layers;
         let start_layer = layers.pop().unwrap();
-        let mut next = start_layer
-            .kind
-            .expand(&start_layer.next_layer, self.game_state, children);
+        let mut next =
+            start_layer
+                .kind
+                .expand(start_layer.force_next_layer(), self.game_state, children);
 
         puffin::profile_scope!("backprop");
         let mut next_layer = start_layer;
@@ -218,6 +219,36 @@ pub(super) fn update_child<E: Evaluation>(
 fn child_precedes<E: Evaluation>(left: &Child<E>, right: &Child<E>) -> bool {
     left.cached_eval > right.cached_eval
         || (left.cached_eval == right.cached_eval && left.mv.sort_key() < right.mv.sort_key())
+}
+
+impl<E: Evaluation> LayerCommon<E> {
+    fn new(locking: bool) -> Self {
+        LayerCommon {
+            next_layer: OnceCell::new(),
+            kind: WithBump::new_with_locking(locking),
+            locking,
+        }
+    }
+
+    fn force_next_layer(&self) -> &LayerCommon<E> {
+        self.next_layer
+            .get_or_init(|| Box::new(LayerCommon::new(self.locking)))
+    }
+
+    fn force_next_layer_mut(&mut self) -> &mut LayerCommon<E> {
+        if self.next_layer.get().is_none() {
+            let _ = self
+                .next_layer
+                .set(Box::new(LayerCommon::new(self.locking)));
+        }
+        self.next_layer.get_mut().unwrap()
+    }
+}
+
+impl<E: Evaluation> Default for LayerCommon<E> {
+    fn default() -> Self {
+        LayerCommon::new(true)
+    }
 }
 
 impl<E: Evaluation> WithBump<E> {
@@ -319,21 +350,22 @@ impl<E: Evaluation> WithBump<E> {
         children: &[ChildData<E>],
         parent: u64,
         speculation_piece: Piece,
-    ) -> Vec<E> {
+        mut f: impl FnMut(&ChildData<E>, E),
+    ) {
         self.with(|this| match this.data {
             LayerKind::Known(l) => {
                 let bump = this.bump.get();
-                children
-                    .iter()
-                    .map(|child| l.create_node(&bump, child, parent, speculation_piece))
-                    .collect()
+                for child in children {
+                    let eval = l.create_node(&bump, child, parent, speculation_piece);
+                    f(child, eval);
+                }
             }
             LayerKind::Speculated(l) => {
                 let bump = this.bump.get();
-                children
-                    .iter()
-                    .map(|child| l.create_node(&bump, child, parent, speculation_piece))
-                    .collect()
+                for child in children {
+                    let eval = l.create_node(&bump, child, parent, speculation_piece);
+                    f(child, eval);
+                }
             }
         })
     }
@@ -341,6 +373,14 @@ impl<E: Evaluation> WithBump<E> {
 
 impl<E: Evaluation> Default for WithBump<E> {
     fn default() -> Self {
-        WithBump::new(Herd::new(), |_| LayerKind::Speculated(Default::default()))
+        Self::new_with_locking(true)
+    }
+}
+
+impl<E: Evaluation> WithBump<E> {
+    fn new_with_locking(locking: bool) -> Self {
+        WithBump::new(Herd::new(), |_| {
+            LayerKind::Speculated(speculated::Layer::new(locking))
+        })
     }
 }

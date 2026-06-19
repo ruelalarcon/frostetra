@@ -27,6 +27,12 @@ pub(super) struct Node<'bump, E: Evaluation> {
 }
 
 impl<'bump, E: Evaluation> Layer<'bump, E> {
+    pub fn new(locking: bool) -> Self {
+        Layer {
+            states: StateMap::new(locking),
+        }
+    }
+
     pub fn initialize_root(&self, root: &GameState) {
         let _ = self.states.get_or_insert_with(root, || Node {
             parents: &[],
@@ -116,12 +122,14 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
                 expanding: AtomicBool::new(false),
                 bag: child.resulting_state.bag,
             });
-        node.parents = bump.alloc_slice_fill_with(node.parents.len() + 1, |i| {
-            node.parents
-                .get(i)
-                .copied()
-                .unwrap_or((parent, child.mv, speculation_piece))
-        });
+        let new_parent = (parent, child.mv, speculation_piece);
+        node.parents = if node.parents.is_empty() {
+            bump.alloc_slice_copy(&[new_parent])
+        } else {
+            bump.alloc_slice_fill_with(node.parents.len() + 1, |i| {
+                node.parents.get(i).copied().unwrap_or(new_parent)
+            })
+        };
         node.eval
     }
 
@@ -142,18 +150,18 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         {
             puffin::profile_scope!("create nodes");
             for speculation_piece in EnumSet::all() {
-                let evals = next_layer.kind.create_nodes(
+                next_layer.kind.create_nodes(
                     &children[speculation_piece],
                     parent_index,
                     speculation_piece,
+                    |child, eval| {
+                        childs_data.push(Child {
+                            mv: child.mv,
+                            cached_eval: eval + child.reward,
+                            reward: child.reward,
+                        });
+                    },
                 );
-                for (child, eval) in children[speculation_piece].iter().zip(evals.into_iter()) {
-                    childs_data.push(Child {
-                        mv: child.mv,
-                        cached_eval: eval + child.reward,
-                        reward: child.reward,
-                    });
-                }
                 childs_indices[speculation_piece as usize + 1] = childs_data.len() as u16;
             }
         }

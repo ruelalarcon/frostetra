@@ -103,12 +103,14 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
                 children: None,
                 expanding: AtomicBool::new(false),
             });
-        node.parents = bump.alloc_slice_fill_with(node.parents.len() + 1, |i| {
-            node.parents
-                .get(i)
-                .copied()
-                .unwrap_or((parent, child.mv, speculation_piece))
-        });
+        let new_parent = (parent, child.mv, speculation_piece);
+        node.parents = if node.parents.is_empty() {
+            bump.alloc_slice_copy(&[new_parent])
+        } else {
+            bump.alloc_slice_fill_with(node.parents.len() + 1, |i| {
+                node.parents.get(i).copied().unwrap_or(new_parent)
+            })
+        };
         node.eval
     }
 
@@ -127,17 +129,18 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
 
         {
             puffin::profile_scope!("create nodes");
-            let evals =
-                next_layer
-                    .kind
-                    .create_nodes(&children[self.piece], parent_index, self.piece);
-            for (child, eval) in children[self.piece].iter().zip(evals.into_iter()) {
-                childs.push(Child {
-                    mv: child.mv,
-                    cached_eval: eval + child.reward,
-                    reward: child.reward,
-                });
-            }
+            next_layer.kind.create_nodes(
+                &children[self.piece],
+                parent_index,
+                self.piece,
+                |child, eval| {
+                    childs.push(Child {
+                        mv: child.mv,
+                        cached_eval: eval + child.reward,
+                        reward: child.reward,
+                    });
+                },
+            );
         }
 
         childs.sort_by(|a, b| {

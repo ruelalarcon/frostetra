@@ -14,9 +14,9 @@ pub struct Freestyle {
 }
 
 impl Freestyle {
-    pub fn new(_options: &BotOptions, root: GameState, queue: &[Piece]) -> Self {
+    pub fn new(options: &BotOptions, root: GameState, queue: &[Piece]) -> Self {
         Freestyle {
-            dag: Dag::new(root, queue),
+            dag: Dag::new(root, queue, options.config.search.budget.starts_worker()),
         }
     }
 }

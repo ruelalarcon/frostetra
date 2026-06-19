@@ -58,3 +58,9 @@ pub enum SearchBudgetConfig {
     IterationsPerSuggest { iterations: u64 },
     NodesPerSuggest { nodes: u64 },
 }
+
+impl SearchBudgetConfig {
+    pub fn starts_worker(&self) -> bool {
+        matches!(self, SearchBudgetConfig::Background { .. })
+    }
+}
