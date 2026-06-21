@@ -114,7 +114,7 @@ async fn handle_frontend_message(
             bot.stop();
             *waiting_on_first_piece = None;
         }
-        FrontendMessage::Suggest => {
+        FrontendMessage::Suggest { .. } => {
             if let Some((moves, data)) = bot.suggest() {
                 outgoing
                     .send(BotMessage::Info {

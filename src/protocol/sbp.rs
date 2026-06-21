@@ -47,7 +47,10 @@ pub enum FrontendMessage {
     NewPiece {
         piece: Piece,
     },
-    Suggest,
+    Suggest {
+        #[serde(default)]
+        incoming_garbage: Option<Vec<u32>>,
+    },
     Stop,
     Quit,
     #[serde(other)]
@@ -104,6 +107,8 @@ pub struct Start {
     #[serde(deserialize_with = "deserialize_counter")]
     pub back_to_back: u32,
     pub piece_stream: Option<PieceStream>,
+    #[serde(default)]
+    pub incoming_garbage: Option<Vec<u32>>,
 }
 
 #[derive(Deserialize)]
