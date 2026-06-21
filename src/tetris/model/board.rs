@@ -2,15 +2,25 @@ use serde::Deserialize;
 
 use crate::tetris::model::PieceLocation;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize)]
 #[serde(from = "Vec<[Option<char>; 10]>")]
 pub struct Board {
     pub cols: [u64; 10],
+    pub height: u8,
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        Board {
+            cols: [0; 10],
+            height: 40,
+        }
+    }
 }
 
 impl Board {
     pub const fn occupied(&self, (x, y): (i8, i8)) -> bool {
-        if x < 0 || x >= 10 || y < 0 || y >= 40 {
+        if x < 0 || x >= 10 || y < 0 || y >= self.height as i8 {
             return true;
         }
         self.cols[x as usize] & 1 << y != 0
@@ -18,7 +28,7 @@ impl Board {
 
     pub fn distance_to_ground(&self, x: i8, y: i8) -> i8 {
         debug_assert!((0..10).contains(&x));
-        debug_assert!((0..40).contains(&y));
+        debug_assert!(y >= 0 && y < self.height as i8);
         if y == 0 {
             return 0;
         }
@@ -28,7 +38,7 @@ impl Board {
     pub fn place(&mut self, piece: PieceLocation) {
         for &(x, y) in &piece.cells() {
             debug_assert!((0..10).contains(&x));
-            debug_assert!((0..40).contains(&y));
+            debug_assert!(y >= 0 && y < self.height as i8);
             self.cols[x as usize] |= 1 << y;
         }
     }
@@ -47,14 +57,18 @@ impl Board {
 impl From<Vec<[Option<char>; 10]>> for Board {
     fn from(v: Vec<[Option<char>; 10]>) -> Self {
         let mut cols = [0; 10];
+        let height = if v.is_empty() { 40 } else { v.len().min(64) };
         for x in 0..10 {
-            for y in 0..40 {
+            for y in 0..height {
                 if v[y][x].is_some() {
                     cols[x] |= 1 << y;
                 }
             }
         }
-        Board { cols }
+        Board {
+            cols,
+            height: height as u8,
+        }
     }
 }
 

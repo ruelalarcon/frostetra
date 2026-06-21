@@ -2,6 +2,7 @@ use crate::tetris::model::{Board, Piece, PieceLocation, Rotation};
 
 pub(super) struct CollisionMaps {
     boards: [[u64; 10]; 4],
+    height: u8,
 }
 
 impl CollisionMaps {
@@ -24,12 +25,15 @@ impl CollisionMaps {
                 }
             }
         }
-        CollisionMaps { boards }
+        CollisionMaps {
+            boards,
+            height: board.height,
+        }
     }
 
     pub(super) fn obstructed(&self, piece: PieceLocation) -> bool {
         piece.y < 0
-            || piece.cells().iter().any(|&(_, y)| y >= 40)
+            || piece.cells().iter().any(|&(_, y)| y >= self.height as i8)
             || self.boards[piece.rotation as usize]
                 .get(piece.x as usize)
                 .map(|&c| c & 1 << piece.y != 0)

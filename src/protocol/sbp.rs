@@ -17,6 +17,48 @@ fn default_spawn_y() -> i8 {
     20
 }
 
+fn default_board_width() -> u8 {
+    10
+}
+
+fn default_board_height() -> u8 {
+    40
+}
+
+#[derive(Clone, Copy, Deserialize)]
+pub struct SpawnPosition {
+    #[serde(default = "default_spawn_x")]
+    pub x: i8,
+    #[serde(default = "default_spawn_y")]
+    pub y: i8,
+}
+
+impl Default for SpawnPosition {
+    fn default() -> Self {
+        Self {
+            x: default_spawn_x(),
+            y: default_spawn_y(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Deserialize)]
+pub struct BoardSize {
+    #[serde(default = "default_board_width")]
+    pub width: u8,
+    #[serde(default = "default_board_height")]
+    pub height: u8,
+}
+
+impl Default for BoardSize {
+    fn default() -> Self {
+        Self {
+            width: default_board_width(),
+            height: default_board_height(),
+        }
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
@@ -34,10 +76,10 @@ pub enum FrontendMessage {
         spin_detection: SpinDetection,
         #[serde(default = "default_back_to_back_sources")]
         back_to_back_sources: Vec<BackToBackSource>,
-        #[serde(default = "default_spawn_x")]
-        spawn_x: i8,
-        #[serde(default = "default_spawn_y")]
-        spawn_y: i8,
+        #[serde(default)]
+        spawn_position: SpawnPosition,
+        #[serde(default)]
+        board_size: BoardSize,
     },
     Start(Start),
     Board {
@@ -91,6 +133,19 @@ pub struct Capabilities {
     pub piece_stream: bool,
     pub spawn_position: bool,
     pub board: bool,
+    pub board_size: BoardSizeCapability,
+}
+
+#[derive(Serialize)]
+pub struct BoardSizeCapability {
+    pub width: u8,
+    pub height: IntRangeCapability,
+}
+
+#[derive(Serialize)]
+pub struct IntRangeCapability {
+    pub min: u8,
+    pub max: u8,
 }
 
 fn default_back_to_back_sources() -> Vec<BackToBackSource> {

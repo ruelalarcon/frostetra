@@ -12,6 +12,8 @@ pub struct GameRules {
     pub back_to_back_sources: EnumSet<BackToBackSource>,
     pub spawn_x: i8,
     pub spawn_y: i8,
+    pub board_width: u8,
+    pub board_height: u8,
 }
 
 impl Default for GameRules {
@@ -26,6 +28,8 @@ impl Default for GameRules {
             ),
             spawn_x: 4,
             spawn_y: 20,
+            board_width: 10,
+            board_height: 40,
         }
     }
 }

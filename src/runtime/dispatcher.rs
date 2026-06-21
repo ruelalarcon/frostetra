@@ -7,7 +7,10 @@ use futures::prelude::*;
 use serde_json::Value;
 
 use crate::config::BotConfig;
-use crate::protocol::sbp::{BotMessage, Capabilities, FrontendMessage, Randomizer, Start};
+use crate::protocol::sbp::{
+    BoardSizeCapability, BotMessage, Capabilities, FrontendMessage, IntRangeCapability, Randomizer,
+    Start,
+};
 use crate::runtime::bot_factory::create_bot;
 use crate::runtime::bot_session::BotSession;
 use crate::tetris::model::rules::GameRules;
@@ -48,6 +51,10 @@ pub async fn run(
                 piece_stream: true,
                 spawn_position: true,
                 board: true,
+                board_size: BoardSizeCapability {
+                    width: 10,
+                    height: IntRangeCapability { min: 1, max: 64 },
+                },
             },
         })
         .await
@@ -156,8 +163,8 @@ async fn handle_frontend_message(
             sonic_drop,
             spin_detection,
             back_to_back_sources,
-            spawn_x,
-            spawn_y,
+            spawn_position,
+            board_size,
         } => {
             *randomizer = rules_randomizer;
             *game_rules = GameRules {
@@ -166,8 +173,10 @@ async fn handle_frontend_message(
                 sonic_drop,
                 spin_detection,
                 back_to_back_sources: back_to_back_sources.into_iter().collect::<EnumSet<_>>(),
-                spawn_x,
-                spawn_y,
+                spawn_x: spawn_position.x,
+                spawn_y: spawn_position.y,
+                board_width: board_size.width,
+                board_height: board_size.height,
             };
             outgoing.send(BotMessage::Ready).await.unwrap();
         }
