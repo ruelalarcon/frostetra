@@ -4,7 +4,7 @@ use std::thread::{self, ThreadId};
 use crate::bot::{Bot, Statistics};
 use crate::config::SearchRngConfig;
 use crate::search::{SearchBudget, SearchContext};
-use crate::tetris::model::{Piece, Placement};
+use crate::tetris::model::{Board, Piece, Placement};
 
 pub struct BotRunner {
     bot: Bot,
@@ -72,6 +72,11 @@ impl BotRunner {
     pub fn advance(&mut self, mv: Placement) {
         self.assert_thread_owner();
         self.bot.advance(mv);
+    }
+
+    pub fn replace_board(&mut self, board: Board) {
+        self.assert_thread_owner();
+        self.bot.replace_board(board);
     }
 
     pub fn new_piece(&mut self, piece: Piece) {

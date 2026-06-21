@@ -47,6 +47,7 @@ pub async fn run(
                 ],
                 piece_stream: true,
                 spawn_position: true,
+                board: true,
             },
         })
         .await
@@ -113,6 +114,10 @@ async fn handle_frontend_message(
         FrontendMessage::Stop => {
             bot.stop();
             *waiting_on_first_piece = None;
+        }
+        FrontendMessage::Board { board } => {
+            bot.replace_board(board);
+            send_logs(outgoing, bot.drain_logs()).await;
         }
         FrontendMessage::Suggest { .. } => {
             if let Some((moves, data)) = bot.suggest() {

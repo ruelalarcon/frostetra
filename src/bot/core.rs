@@ -5,7 +5,7 @@ use enumset::EnumSet;
 use crate::bot::behavior::{Behavior, BehaviorEnum, BehaviorKind, BehaviorSwitch};
 use crate::bot::{BotOptions, Statistics};
 use crate::search::SearchContext;
-use crate::tetris::model::{GameState, Piece, Placement};
+use crate::tetris::model::{Board, GameState, Piece, Placement};
 use crate::tetris::randomizer::seven_bag::SevenBagTracker;
 
 pub struct Bot {
@@ -69,6 +69,12 @@ impl Bot {
         if !self.maybe_start_speculation() {
             self.behavior.new_piece(&self.options, piece);
         }
+    }
+
+    pub fn replace_board(&mut self, board: Board) {
+        puffin::profile_function!();
+        self.current.board = board;
+        self.rebuild_behavior(self.behavior.kind());
     }
 
     pub fn suggest(&self) -> Vec<Placement> {

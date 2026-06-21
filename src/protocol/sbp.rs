@@ -40,6 +40,9 @@ pub enum FrontendMessage {
         spawn_y: i8,
     },
     Start(Start),
+    Board {
+        board: Board,
+    },
     Play {
         #[serde(rename = "move")]
         mv: Placement,
@@ -87,6 +90,7 @@ pub struct Capabilities {
     pub back_to_back_sources: &'static [&'static str],
     pub piece_stream: bool,
     pub spawn_position: bool,
+    pub board: bool,
 }
 
 fn default_back_to_back_sources() -> Vec<BackToBackSource> {

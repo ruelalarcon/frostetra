@@ -5,7 +5,7 @@ use crate::bot::{Bot, BotRunner};
 use crate::config::SearchConfig;
 use crate::protocol::sbp::SearchInfo;
 use crate::runtime::search_driver::{SearchDriver, SearchState};
-use crate::tetris::model::{Piece, Placement};
+use crate::tetris::model::{Board, Piece, Placement};
 
 pub struct BotSession {
     state: Mutex<SearchState>,
@@ -66,6 +66,16 @@ impl BotSession {
         let mut runner = self.runner.write();
         if let Some(runner) = &mut *runner {
             runner.advance(mv);
+        }
+        self.blocker.notify_all();
+    }
+
+    pub fn replace_board(&self, board: Board) {
+        let mut state = self.state.lock();
+        state.reset_advance_stats();
+        let mut runner = self.runner.write();
+        if let Some(runner) = &mut *runner {
+            runner.replace_board(board);
         }
         self.blocker.notify_all();
     }
