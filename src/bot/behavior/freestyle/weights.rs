@@ -17,8 +17,10 @@ pub struct Weights {
     pub softdrop: f32,
 
     pub normal_clears: [f32; 5],
-    pub mini_spin_clears: [f32; 3],
-    pub spin_clears: [f32; 4],
+    pub t_spin_clears: [f32; 4],
+    pub t_spin_mini_clears: [f32; 4],
+    pub allspin_clears: [f32; 4],
+    pub allspin_mini_clears: [f32; 4],
     pub back_to_back_clear: f32,
     pub combo_attack: f32,
     pub perfect_clear: f32,

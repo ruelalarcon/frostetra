@@ -19,11 +19,17 @@ pub fn evaluate(
         if info.lines_cleared != 0 && info.back_to_back > 1 {
             reward += weights.back_to_back_clear;
         }
-        match info.placement.spin {
-            Spin::None => reward += weights.normal_clears[info.lines_cleared as usize],
-            Spin::Mini => reward += weights.mini_spin_clears[info.lines_cleared as usize],
-            Spin::Full => reward += weights.spin_clears[info.lines_cleared as usize],
-        }
+        reward += match (
+            info.placement.location.piece,
+            info.placement.spin,
+            info.lines_cleared as usize,
+        ) {
+            (_, Spin::None, lines) => weights.normal_clears[lines],
+            (Piece::T, Spin::Mini, lines) => weights.t_spin_mini_clears[lines],
+            (Piece::T, Spin::Full, lines) => weights.t_spin_clears[lines],
+            (_, Spin::Mini, lines) => weights.allspin_mini_clears[lines],
+            (_, Spin::Full, lines) => weights.allspin_clears[lines],
+        };
         reward += weights.combo_attack * (info.combo.saturating_sub(1) / 2) as f32;
     }
 
