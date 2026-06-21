@@ -1,5 +1,6 @@
 mod collision_maps;
 mod finder;
+mod spin;
 
 pub mod kicks;
 

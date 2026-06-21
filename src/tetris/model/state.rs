@@ -1,6 +1,6 @@
 use enumset::EnumSet;
 
-use crate::tetris::model::rules::GameRules;
+use crate::tetris::model::rules::{BackToBackSource, GameRules};
 use crate::tetris::model::{Board, Piece, Placement, PlacementInfo, Spin};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -32,10 +32,13 @@ impl GameState {
         if cleared_mask != 0 {
             self.board.remove_lines(cleared_mask);
             perfect_clear = self.board.cols.iter().all(|&c| c == 0);
-            let hard = cleared_mask.count_ones() == 4
-                || (!matches!(placement.spin, Spin::None)
-                    && (matches!(placement.location.piece, Piece::T) || rules.allspin_b2b))
-                || (rules.allclear_b2b && perfect_clear);
+            let hard = !clear_sources(
+                placement.location.piece,
+                placement.spin,
+                cleared_mask.count_ones(),
+                perfect_clear,
+            )
+            .is_disjoint(rules.back_to_back_sources);
             self.back_to_back = if hard {
                 self.back_to_back.saturating_add(1)
             } else {
@@ -53,4 +56,35 @@ impl GameState {
             perfect_clear,
         }
     }
+}
+
+fn clear_sources(
+    piece: Piece,
+    spin: Spin,
+    lines_cleared: u32,
+    perfect_clear: bool,
+) -> EnumSet<BackToBackSource> {
+    let mut sources = EnumSet::new();
+    if lines_cleared == 4 {
+        sources.insert(BackToBackSource::Quad);
+    }
+    match (piece, spin) {
+        (Piece::T, Spin::Full) => {
+            sources.insert(BackToBackSource::TSpin);
+        }
+        (Piece::T, Spin::Mini) => {
+            sources.insert(BackToBackSource::TSpinMini);
+        }
+        (_, Spin::Full) => {
+            sources.insert(BackToBackSource::Allspin);
+        }
+        (_, Spin::Mini) => {
+            sources.insert(BackToBackSource::AllspinMini);
+        }
+        (_, Spin::None) => {}
+    }
+    if perfect_clear {
+        sources.insert(BackToBackSource::PerfectClear);
+    }
+    sources
 }

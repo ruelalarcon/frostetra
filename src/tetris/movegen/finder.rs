@@ -6,7 +6,7 @@ use ahash::AHashMap;
 use crate::tetris::model::rules::{GameRules, SonicDrop};
 use crate::tetris::model::*;
 use crate::tetris::movegen::collision_maps::CollisionMaps;
-use crate::tetris::movegen::kicks;
+use crate::tetris::movegen::spin::detect_spin;
 
 pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placement, u32)> {
     puffin::profile_function!();
@@ -51,9 +51,7 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
                     update_position(mv, distance as u32);
                 }
                 for rotation in [location.rotation.cw(), location.rotation.ccw()] {
-                    if let Some(mv) =
-                        rotate_to(location, rotation, &collision_map, board, rules.kickset)
-                    {
+                    if let Some(mv) = rotate_to(location, rotation, &collision_map, board, rules) {
                         update_position(mv, distance as u32);
                     }
                 }
@@ -63,7 +61,7 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
                         location.rotation.flip(),
                         &collision_map,
                         board,
-                        rules.kickset,
+                        rules,
                     ) {
                         update_position(mv, distance as u32);
                     }
@@ -141,13 +139,8 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
             expand.mv.location.rotation.cw(),
             expand.mv.location.rotation.ccw(),
         ] {
-            if let Some(mv) = rotate_to(
-                expand.mv.location,
-                rotation,
-                &collision_map,
-                board,
-                rules.kickset,
-            ) {
+            if let Some(mv) = rotate_to(expand.mv.location, rotation, &collision_map, board, rules)
+            {
                 update_position(mv, expand.soft_drops);
             }
         }
@@ -157,7 +150,7 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
                 expand.mv.location.rotation.flip(),
                 &collision_map,
                 board,
-                rules.kickset,
+                rules,
             ) {
                 update_position(mv, expand.soft_drops);
             }
@@ -206,7 +199,7 @@ fn rotate_to(
     to_rotation: Rotation,
     collision_map: &CollisionMaps,
     board: &Board,
-    kickset: kicks::Kickset,
+    rules: &GameRules,
 ) -> Option<Placement> {
     let unkicked = PieceLocation {
         rotation: to_rotation,
@@ -216,7 +209,9 @@ fn rotate_to(
         unkicked,
         collision_map,
         board,
-        kickset
+        rules,
+        rules
+            .kickset
             .kicks_between(from.piece, from.rotation, to_rotation)
             .iter()
             .copied(),
@@ -227,6 +222,7 @@ fn rotate(
     unkicked: PieceLocation,
     collision_map: &CollisionMaps,
     board: &Board,
+    rules: &GameRules,
     kicks: impl Iterator<Item = (i8, i8)>,
 ) -> Option<Placement> {
     for (i, (dx, dy)) in kicks.enumerate() {
@@ -239,59 +235,13 @@ fn rotate(
             continue;
         }
 
-        let spin;
-        if target.piece != Piece::T {
-            spin = if non_t_spin(target, board) {
-                Spin::Full
-            } else {
-                Spin::None
-            };
-        } else {
-            let corners = [(-1, -1), (1, -1), (-1, 1), (1, 1)]
-                .iter()
-                .filter(|&&(cx, cy)| board.occupied((cx + target.x, cy + target.y)))
-                .count();
-            let mini_corners = [(-1, 1), (1, 1)]
-                .iter()
-                .map(|&c| target.rotation.rotate_cell(c))
-                .filter(|&(cx, cy)| board.occupied((cx + target.x, cy + target.y)))
-                .count();
-
-            if corners < 3 {
-                spin = Spin::None;
-            } else if mini_corners == 2 || i == 4 {
-                spin = Spin::Full;
-            } else {
-                spin = Spin::Mini;
-            }
-        }
-
         return Some(Placement {
             location: target,
-            spin,
+            spin: detect_spin(target, board, rules, i),
         });
     }
 
     None
-}
-
-fn non_t_spin(location: PieceLocation, board: &Board) -> bool {
-    [
-        PieceLocation {
-            x: location.x - 1,
-            ..location
-        },
-        PieceLocation {
-            x: location.x + 1,
-            ..location
-        },
-        PieceLocation {
-            y: location.y + 1,
-            ..location
-        },
-    ]
-    .iter()
-    .all(|location| location.obstructed(board))
 }
 
 #[derive(Clone, Copy, Debug, Eq)]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-pub use crate::tetris::model::rules::SonicDrop;
+pub use crate::tetris::model::rules::{BackToBackSource, SonicDrop, SpinDetection};
 use crate::tetris::model::{Board, Piece, Placement};
 pub use crate::tetris::movegen::Kickset;
 
@@ -31,9 +31,9 @@ pub enum FrontendMessage {
         #[serde(default)]
         sonic_drop: SonicDrop,
         #[serde(default)]
-        allspin_b2b: bool,
-        #[serde(default)]
-        allclear_b2b: bool,
+        spin_detection: SpinDetection,
+        #[serde(default = "default_back_to_back_sources")]
+        back_to_back_sources: Vec<BackToBackSource>,
         #[serde(default = "default_spawn_x")]
         spawn_x: i8,
         #[serde(default = "default_spawn_y")]
@@ -80,8 +80,18 @@ pub struct Capabilities {
     pub kicksets: &'static [&'static str],
     pub rot180: bool,
     pub sonic_drop: &'static [&'static str],
+    pub spin_detection: &'static [&'static str],
+    pub back_to_back_sources: &'static [&'static str],
     pub piece_stream: bool,
     pub spawn_position: bool,
+}
+
+fn default_back_to_back_sources() -> Vec<BackToBackSource> {
+    vec![
+        BackToBackSource::Quad,
+        BackToBackSource::TSpin,
+        BackToBackSource::TSpinMini,
+    ]
 }
 
 #[derive(Deserialize)]

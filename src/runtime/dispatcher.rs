@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 
+use enumset::EnumSet;
 use futures::channel::mpsc;
 use futures::prelude::*;
 use serde_json::Value;
@@ -26,6 +27,24 @@ pub async fn run(
                 kicksets: &["srs", "srs_plus"],
                 rot180: true,
                 sonic_drop: &["only", "allow"],
+                spin_detection: &[
+                    "none",
+                    "t-spins",
+                    "t-spins+",
+                    "all",
+                    "all+",
+                    "all-mini",
+                    "all-mini+",
+                    "mini-only",
+                ],
+                back_to_back_sources: &[
+                    "quad",
+                    "t-spin",
+                    "t-spin-mini",
+                    "allspin",
+                    "allspin-mini",
+                    "perfect-clear",
+                ],
                 piece_stream: true,
                 spawn_position: true,
             },
@@ -130,8 +149,8 @@ async fn handle_frontend_message(
             kickset,
             rot180,
             sonic_drop,
-            allspin_b2b,
-            allclear_b2b,
+            spin_detection,
+            back_to_back_sources,
             spawn_x,
             spawn_y,
         } => {
@@ -140,8 +159,8 @@ async fn handle_frontend_message(
                 kickset,
                 rot180,
                 sonic_drop,
-                allspin_b2b,
-                allclear_b2b,
+                spin_detection,
+                back_to_back_sources: back_to_back_sources.into_iter().collect::<EnumSet<_>>(),
                 spawn_x,
                 spawn_y,
             };

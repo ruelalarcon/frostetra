@@ -200,6 +200,10 @@ On startup, Frostetra sends an SBP `register` message with these capabilities:
 - `kicksets`: `srs`, `srs_plus`
 - `rot180`: supported
 - `sonic_drop`: `only`, `allow`
+- `spin_detection`: `none`, `t-spins`, `t-spins+`, `all`, `all+`, `all-mini`,
+  `all-mini+`, `mini-only`
+- `back_to_back_sources`: `quad`, `t-spin`, `t-spin-mini`, `allspin`,
+  `allspin-mini`, `perfect-clear`
 - `piece_stream`: supported
 - `spawn_position`: supported
 
