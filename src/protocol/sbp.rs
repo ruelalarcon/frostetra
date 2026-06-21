@@ -14,7 +14,7 @@ fn default_spawn_x() -> i8 {
 }
 
 fn default_spawn_y() -> i8 {
-    19
+    20
 }
 
 #[derive(Deserialize)]

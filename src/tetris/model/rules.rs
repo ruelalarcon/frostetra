@@ -25,7 +25,7 @@ impl Default for GameRules {
                 BackToBackSource::Quad | BackToBackSource::TSpin | BackToBackSource::TSpinMini
             ),
             spawn_x: 4,
-            spawn_y: 19,
+            spawn_y: 20,
         }
     }
 }
