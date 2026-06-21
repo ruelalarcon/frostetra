@@ -1,18 +1,18 @@
 use enumset::EnumSet;
 
 use crate::tetris::model::rules::{BackToBackSource, GameRules};
-use crate::tetris::model::{Board, Piece, Placement, PlacementInfo, Spin};
+use crate::tetris::model::{Board, BoardRepresentation, Piece, Placement, PlacementInfo, Spin};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct GameState {
-    pub board: Board,
+pub struct GameState<B = Board> {
+    pub board: B,
     pub bag: EnumSet<Piece>,
     pub reserve: Piece,
     pub back_to_back: u8,
     pub combo: u8,
 }
 
-impl GameState {
+impl<B: BoardRepresentation> GameState<B> {
     pub fn advance(
         &mut self,
         next: Piece,
@@ -31,7 +31,7 @@ impl GameState {
         let mut perfect_clear = false;
         if cleared_mask != 0 {
             self.board.remove_lines(cleared_mask);
-            perfect_clear = self.board.cols.iter().all(|&c| c == 0);
+            perfect_clear = self.board.is_empty();
             let hard = !clear_sources(
                 placement.location.piece,
                 placement.spin,

@@ -7,7 +7,7 @@ pub mod rules;
 pub mod spin;
 pub mod state;
 
-pub use board::Board;
+pub use board::{Board, BoardRepresentation, BoardSnapshot, DynamicBoard, FixedBoard};
 pub use location::PieceLocation;
 pub use piece::Piece;
 pub use placement::{Placement, PlacementInfo};

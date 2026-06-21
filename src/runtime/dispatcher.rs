@@ -52,7 +52,7 @@ pub async fn run(
                 spawn_position: true,
                 board: true,
                 board_size: BoardSizeCapability {
-                    width: 10,
+                    width: IntRangeCapability { min: 4, max: 127 },
                     height: IntRangeCapability { min: 1, max: 64 },
                 },
             },

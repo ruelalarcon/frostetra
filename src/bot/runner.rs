@@ -4,16 +4,17 @@ use std::thread::{self, ThreadId};
 use crate::bot::{Bot, Statistics};
 use crate::config::SearchRngConfig;
 use crate::search::{SearchBudget, SearchContext};
-use crate::tetris::model::{Board, Piece, Placement};
+use crate::tetris::model::{Board, BoardRepresentation, Piece, Placement};
+use crate::tetris::movegen::MovegenBoard;
 
-pub struct BotRunner {
-    bot: Bot,
+pub struct BotRunner<B: BoardRepresentation = Board> {
+    bot: Bot<B>,
     context: SearchContext,
     thread_owner: Option<OnceLock<ThreadId>>,
 }
 
-impl BotRunner {
-    pub fn from_seed(bot: Bot, seed: u64, thread_local: bool) -> Self {
+impl<B: MovegenBoard> BotRunner<B> {
+    pub fn from_seed(bot: Bot<B>, seed: u64, thread_local: bool) -> Self {
         BotRunner {
             bot,
             context: SearchContext::from_seed(seed),
@@ -21,7 +22,7 @@ impl BotRunner {
         }
     }
 
-    pub fn from_entropy(bot: Bot, thread_local: bool) -> Self {
+    pub fn from_entropy(bot: Bot<B>, thread_local: bool) -> Self {
         BotRunner {
             bot,
             context: SearchContext::from_entropy(),
@@ -29,7 +30,7 @@ impl BotRunner {
         }
     }
 
-    pub fn from_rng_config(bot: Bot, config: &SearchRngConfig, thread_local: bool) -> Self {
+    pub fn from_rng_config(bot: Bot<B>, config: &SearchRngConfig, thread_local: bool) -> Self {
         match config {
             SearchRngConfig::Entropy => Self::from_entropy(bot, thread_local),
             SearchRngConfig::Seeded { seed } => Self::from_seed(bot, *seed, thread_local),
@@ -74,9 +75,13 @@ impl BotRunner {
         self.bot.advance(mv);
     }
 
-    pub fn replace_board(&mut self, board: Board) {
+    pub fn replace_board(&mut self, board: B) {
         self.assert_thread_owner();
         self.bot.replace_board(board);
+    }
+
+    pub fn board_width(&self) -> usize {
+        self.bot.board_width()
     }
 
     pub fn new_piece(&mut self, piece: Piece) {

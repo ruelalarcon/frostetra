@@ -207,7 +207,7 @@ On startup, Frostetra sends an SBP `register` message with these capabilities:
 - `piece_stream`: supported
 - `spawn_position`: supported
 - `board`: supported
-- `board_size`: width `10`, height `1..64`
+- `board_size`: width `4..127`, height `1..64`
 
 The normal SBP flow is:
 

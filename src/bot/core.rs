@@ -2,27 +2,28 @@ use std::collections::VecDeque;
 
 use enumset::EnumSet;
 
-use crate::bot::behavior::{Behavior, BehaviorEnum, BehaviorKind, BehaviorSwitch};
+use crate::bot::behavior::{BehaviorEnum, BehaviorKind, BehaviorSwitch};
 use crate::bot::{BotOptions, Statistics};
 use crate::search::SearchContext;
-use crate::tetris::model::{Board, GameState, Piece, Placement};
+use crate::tetris::model::{Board, BoardRepresentation, GameState, Piece, Placement};
+use crate::tetris::movegen::MovegenBoard;
 use crate::tetris::randomizer::seven_bag::SevenBagTracker;
 
-pub struct Bot {
+pub struct Bot<B: BoardRepresentation = Board> {
     options: BotOptions,
-    current: GameState,
+    current: GameState<B>,
     queue: VecDeque<Piece>,
-    behavior: BehaviorEnum,
+    behavior: BehaviorEnum<B>,
     bag_tracker: Option<SevenBagTracker>,
     consumed_pieces: usize,
     logged_speculation_start: bool,
     logs: Vec<String>,
 }
 
-impl Bot {
+impl<B: MovegenBoard> Bot<B> {
     pub fn new(
         mut options: BotOptions,
-        mut root: GameState,
+        mut root: GameState<B>,
         queue: &[Piece],
         bag_tracker: Option<SevenBagTracker>,
     ) -> Self {
@@ -38,7 +39,7 @@ impl Bot {
         }
 
         Bot {
-            current: root,
+            current: root.clone(),
             queue: queue.iter().copied().collect(),
             behavior: BehaviorEnum::new(options.config.behavior.initial, &options, root, queue),
             options,
@@ -71,10 +72,14 @@ impl Bot {
         }
     }
 
-    pub fn replace_board(&mut self, board: Board) {
+    pub fn replace_board(&mut self, board: B) {
         puffin::profile_function!();
         self.current.board = board;
         self.rebuild_behavior(self.behavior.kind());
+    }
+
+    pub fn board_width(&self) -> usize {
+        self.current.board.width()
     }
 
     pub fn suggest(&self) -> Vec<Placement> {
@@ -122,7 +127,7 @@ impl Bot {
         self.behavior = BehaviorEnum::new(
             kind,
             &self.options,
-            self.current,
+            self.current.clone(),
             self.queue.make_contiguous(),
         );
     }

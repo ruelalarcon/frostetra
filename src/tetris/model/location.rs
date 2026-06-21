@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::tetris::model::{Board, Piece, Rotation};
+use crate::tetris::model::{BoardRepresentation, Piece, Rotation};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PieceLocation {
@@ -57,11 +57,11 @@ impl PieceLocation {
         ]
     }
 
-    pub fn obstructed(&self, board: &Board) -> bool {
+    pub fn obstructed(&self, board: &impl BoardRepresentation) -> bool {
         self.cells().iter().any(|&cell| board.occupied(cell))
     }
 
-    pub fn drop_distance(&self, board: &Board) -> i8 {
+    pub fn drop_distance(&self, board: &impl BoardRepresentation) -> i8 {
         self.cells()
             .iter()
             .map(|&(x, y)| board.distance_to_ground(x, y))
@@ -69,10 +69,19 @@ impl PieceLocation {
             .unwrap()
     }
 
-    pub fn above_stack(&self, board: &Board) -> bool {
+    pub fn above_stack(&self, board: &impl BoardRepresentation) -> bool {
+        self.cells().iter().all(|&(x, y)| {
+            let Some(&col) = (x >= 0).then(|| board.cols().get(x as usize)).flatten() else {
+                return false;
+            };
+            y >= 64 - col.leading_zeros() as i8
+        })
+    }
+
+    pub fn horizontally_in_bounds(&self, board: &impl BoardRepresentation) -> bool {
         self.cells()
             .iter()
-            .all(|&(x, y)| y >= 64 - board.cols[x as usize].leading_zeros() as i8)
+            .all(|&(x, _)| x >= 0 && (x as usize) < board.width())
     }
 
     pub fn canonical_form(&self) -> PieceLocation {

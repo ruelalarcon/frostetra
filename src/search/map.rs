@@ -9,7 +9,7 @@ use parking_lot::RwLock;
 use parking_lot::RwLockReadGuard;
 use parking_lot::RwLockWriteGuard;
 
-use crate::tetris::model::GameState;
+use crate::tetris::model::{BoardRepresentation, GameState};
 
 pub struct StateMap<V, S = StableStateHasher> {
     hasher: S,
@@ -89,9 +89,9 @@ impl<V, S: Default> StateMap<V, S> {
 }
 
 impl<V, S: BuildHasher> StateMap<V, S> {
-    pub fn index(&self, k: &GameState) -> u64 {
+    pub fn index<B: BoardRepresentation>(&self, k: &GameState<B>) -> u64 {
         let mut hasher = self.hasher.build_hasher();
-        for &col in &k.board.cols {
+        for &col in k.board.cols() {
             hasher.write_u64(col);
         }
 
@@ -125,7 +125,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
         })
     }
 
-    pub fn get(&self, k: &GameState) -> Option<StateReadGuard<'_, V>> {
+    pub fn get<B: BoardRepresentation>(&self, k: &GameState<B>) -> Option<StateReadGuard<'_, V>> {
         self.get_raw(self.index(k))
     }
 
@@ -159,7 +159,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
 
     pub fn get_or_insert_with(
         &self,
-        k: &GameState,
+        k: &GameState<impl BoardRepresentation>,
         f: impl FnOnce() -> V,
     ) -> StateWriteGuard<'_, V> {
         self.get_raw_or_insert_with(self.index(k), f)

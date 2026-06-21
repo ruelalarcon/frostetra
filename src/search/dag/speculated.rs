@@ -7,7 +7,7 @@ use enumset::EnumSet;
 
 use crate::search::map::StateMap;
 use crate::search::SearchContext;
-use crate::tetris::model::{GameState, Piece, Placement};
+use crate::tetris::model::{BoardRepresentation, GameState, Piece, Placement};
 
 use super::{
     update_child, BackpropUpdate, Child, ChildData, Evaluation, LayerCommon, Parent, Parents,
@@ -34,7 +34,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         }
     }
 
-    pub fn initialize_root(&self, root: &GameState) {
+    pub fn initialize_root<B: BoardRepresentation>(&self, root: &GameState<B>) {
         let _ = self.states.get_or_insert_with(root, || Node {
             parents: Parents::default(),
             eval: E::default(),
@@ -44,7 +44,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         });
     }
 
-    pub fn suggest(&self, state: &GameState) -> Vec<Placement> {
+    pub fn suggest<B: BoardRepresentation>(&self, state: &GameState<B>) -> Vec<Placement> {
         puffin::profile_function!();
         let node = self.states.get(state).unwrap();
         let children = match &node.children {
@@ -67,7 +67,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
 
     pub fn select(
         &self,
-        game_state: &GameState,
+        game_state: &GameState<impl BoardRepresentation>,
         exploration: f64,
         context: &SearchContext,
     ) -> SelectResult {
@@ -110,7 +110,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
     pub fn create_node(
         &self,
         bump: &Member<'bump>,
-        child: &ChildData<E>,
+        child: &ChildData<E, impl BoardRepresentation>,
         parent: u64,
         speculation_piece: Piece,
     ) -> E {
@@ -134,12 +134,12 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
         node.eval
     }
 
-    pub fn expand(
+    pub fn expand<B: BoardRepresentation>(
         &self,
         herd: &'bump Herd,
         next_layer: &LayerCommon<E>,
-        parent_state: GameState,
-        children: EnumMap<Piece, Vec<ChildData<E>>>,
+        parent_state: GameState<B>,
+        children: EnumMap<Piece, Vec<ChildData<E, B>>>,
     ) -> Vec<BackpropUpdate> {
         puffin::profile_function!();
         let mut childs_data = vec![];

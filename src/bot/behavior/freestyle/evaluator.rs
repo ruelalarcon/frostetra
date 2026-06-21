@@ -1,11 +1,11 @@
 use crate::bot::behavior::freestyle::features::{board, tslot};
 use crate::bot::behavior::freestyle::score::{Eval, Reward};
 use crate::bot::behavior::freestyle::weights::Weights;
-use crate::tetris::model::{GameState, Piece, PlacementInfo, Spin};
+use crate::tetris::model::{BoardRepresentation, GameState, Piece, PlacementInfo, Spin};
 
-pub fn evaluate(
+pub fn evaluate<B: BoardRepresentation>(
     weights: &Weights,
-    mut state: GameState,
+    mut state: GameState<B>,
     info: &PlacementInfo,
     softdrop: u32,
 ) -> (Eval, Reward) {
@@ -51,7 +51,7 @@ pub fn evaluate(
             Some(v) => v,
             None => break,
         };
-        let mut board = state.board;
+        let mut board = state.board.clone();
         board.place(location);
         eval += weights.tslot[board.line_clears().count_ones() as usize];
         if board.line_clears().count_ones() > 1 {

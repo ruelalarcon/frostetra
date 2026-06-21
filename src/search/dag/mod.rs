@@ -6,7 +6,7 @@ use ouroboros::self_referencing;
 use crate::search::SearchContext;
 use crate::tetris::model::rules::GameRules;
 use crate::tetris::model::Placement;
-use crate::tetris::model::{GameState, Piece};
+use crate::tetris::model::{BoardRepresentation, GameState, Piece};
 
 mod known;
 mod speculated;
@@ -19,18 +19,18 @@ pub trait Evaluation:
     fn average(of: impl Iterator<Item = Option<Self>>) -> Self;
 }
 
-pub struct Dag<E: Evaluation> {
-    root: GameState,
+pub struct Dag<E: Evaluation, B: BoardRepresentation> {
+    root: GameState<B>,
     top_layer: Box<LayerCommon<E>>,
 }
 
-pub struct Selection<'a, E: Evaluation> {
+pub struct Selection<'a, E: Evaluation, B: BoardRepresentation> {
     layers: Vec<&'a LayerCommon<E>>,
-    game_state: GameState,
+    game_state: GameState<B>,
 }
 
-pub struct ChildData<E: Evaluation> {
-    pub resulting_state: GameState,
+pub struct ChildData<E: Evaluation, B: BoardRepresentation> {
+    pub resulting_state: GameState<B>,
     pub mv: Placement,
     pub eval: E,
     pub reward: E::Reward,
@@ -110,8 +110,8 @@ impl<'bump> Parents<'bump> {
     }
 }
 
-impl<E: Evaluation> Dag<E> {
-    pub fn new(root: GameState, queue: &[Piece], locking: bool) -> Self {
+impl<E: Evaluation, B: BoardRepresentation> Dag<E, B> {
+    pub fn new(root: GameState<B>, queue: &[Piece], locking: bool) -> Self {
         let mut top_layer = LayerCommon::new(locking);
         top_layer.kind.initialize_root(&root);
 
@@ -166,10 +166,10 @@ impl<E: Evaluation> Dag<E> {
         exploration: f64,
         rules: &GameRules,
         context: &SearchContext,
-    ) -> Option<Selection<'_, E>> {
+    ) -> Option<Selection<'_, E, B>> {
         puffin::profile_function!();
         let mut layers = vec![&*self.top_layer];
-        let mut game_state = self.root;
+        let mut game_state = self.root.clone();
         loop {
             let &layer = layers.last().unwrap();
 
@@ -188,16 +188,19 @@ impl<E: Evaluation> Dag<E> {
     }
 }
 
-impl<E: Evaluation> Selection<'_, E> {
+impl<E: Evaluation, B: BoardRepresentation> Selection<'_, E, B> {
     pub fn depth(&self) -> usize {
         self.layers.len()
     }
 
-    pub fn state(&self) -> (GameState, Option<Piece>) {
-        (self.game_state, self.layers.last().unwrap().kind.piece())
+    pub fn state(&self) -> (GameState<B>, Option<Piece>) {
+        (
+            self.game_state.clone(),
+            self.layers.last().unwrap().kind.piece(),
+        )
     }
 
-    pub fn expand(self, children: EnumMap<Piece, Vec<ChildData<E>>>) {
+    pub fn expand(self, children: EnumMap<Piece, Vec<ChildData<E, B>>>) {
         puffin::profile_function!();
         let mut layers = self.layers;
         let start_layer = layers.pop().unwrap();
@@ -287,7 +290,7 @@ impl<E: Evaluation> Default for LayerCommon<E> {
 }
 
 impl<E: Evaluation> WithBump<E> {
-    fn initialize_root(&self, root: &GameState) {
+    fn initialize_root<B: BoardRepresentation>(&self, root: &GameState<B>) {
         self.with(|this| match this.data {
             LayerKind::Known(l) => l.initialize_root(root),
             LayerKind::Speculated(l) => l.initialize_root(root),
@@ -313,11 +316,11 @@ impl<E: Evaluation> WithBump<E> {
         })
     }
 
-    fn expand(
+    fn expand<B: BoardRepresentation>(
         &self,
         next_layer: &LayerCommon<E>,
-        parent_state: GameState,
-        children: EnumMap<Piece, Vec<ChildData<E>>>,
+        parent_state: GameState<B>,
+        children: EnumMap<Piece, Vec<ChildData<E, B>>>,
     ) -> Vec<BackpropUpdate> {
         puffin::profile_function!();
         self.with(|this| match this.data {
@@ -328,7 +331,7 @@ impl<E: Evaluation> WithBump<E> {
 
     fn select(
         &self,
-        game_state: &GameState,
+        game_state: &GameState<impl BoardRepresentation>,
         speculate: bool,
         exploration: f64,
         context: &SearchContext,
@@ -341,7 +344,7 @@ impl<E: Evaluation> WithBump<E> {
         })
     }
 
-    fn suggest(&self, state: &GameState) -> Vec<Placement> {
+    fn suggest(&self, state: &GameState<impl BoardRepresentation>) -> Vec<Placement> {
         puffin::profile_function!();
         self.with(|this| match this.data {
             LayerKind::Known(l) => l.suggest(state),
@@ -380,12 +383,12 @@ impl<E: Evaluation> WithBump<E> {
         })
     }
 
-    fn create_nodes(
+    fn create_nodes<B: BoardRepresentation>(
         &self,
-        children: &[ChildData<E>],
+        children: &[ChildData<E, B>],
         parent: u64,
         speculation_piece: Piece,
-        mut f: impl FnMut(&ChildData<E>, E),
+        mut f: impl FnMut(&ChildData<E, B>, E),
     ) {
         self.with(|this| match this.data {
             LayerKind::Known(l) => {

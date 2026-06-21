@@ -1,9 +1,9 @@
 use crate::tetris::model::rules::{GameRules, SpinDetection};
-use crate::tetris::model::{Board, Piece, PieceLocation, Spin};
+use crate::tetris::model::{BoardRepresentation, Piece, PieceLocation, Spin};
 
 pub fn detect_spin(
     location: PieceLocation,
-    board: &Board,
+    board: &impl BoardRepresentation,
     rules: &GameRules,
     kick_index: usize,
 ) -> Spin {
@@ -39,7 +39,7 @@ fn as_option(spin: Spin) -> Option<Spin> {
 
 fn detect_t_spin_or_immobile_t(
     location: PieceLocation,
-    board: &Board,
+    board: &impl BoardRepresentation,
     kick_index: usize,
     force_mini: bool,
 ) -> Option<Spin> {
@@ -52,7 +52,7 @@ fn detect_t_spin_or_immobile_t(
 
 fn detect_t_spin(
     location: PieceLocation,
-    board: &Board,
+    board: &impl BoardRepresentation,
     kick_index: usize,
     force_mini: bool,
 ) -> Spin {
@@ -89,7 +89,11 @@ fn detect_t_spin(
     }
 }
 
-fn non_t_spin(location: PieceLocation, board: &Board, spin: Spin) -> Option<Spin> {
+fn non_t_spin(
+    location: PieceLocation,
+    board: &impl BoardRepresentation,
+    spin: Spin,
+) -> Option<Spin> {
     if location.piece != Piece::T && immobile(location, board) {
         Some(spin)
     } else {
@@ -97,7 +101,7 @@ fn non_t_spin(location: PieceLocation, board: &Board, spin: Spin) -> Option<Spin
     }
 }
 
-fn immobile(location: PieceLocation, board: &Board) -> bool {
+fn immobile(location: PieceLocation, board: &impl BoardRepresentation) -> bool {
     [
         PieceLocation {
             x: location.x - 1,

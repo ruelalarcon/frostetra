@@ -1,16 +1,17 @@
 use futures::channel::mpsc::UnboundedSender;
 use parking_lot::{Condvar, Mutex, RwLock};
 
-use crate::bot::{Bot, BotRunner};
+use crate::bot::BotRunner;
 use crate::config::SearchConfig;
 use crate::protocol::sbp::SearchInfo;
-use crate::runtime::search_driver::{SearchDriver, SearchState};
-use crate::tetris::model::{Board, Piece, Placement};
+use crate::runtime::bot_factory::BotInstance;
+use crate::runtime::search_driver::{SearchDriver, SearchRunner, SearchState};
+use crate::tetris::model::{Board, BoardSnapshot, DynamicBoard, Piece, Placement};
 
 pub struct BotSession {
     state: Mutex<SearchState>,
     blocker: Condvar,
-    runner: RwLock<Option<BotRunner>>,
+    runner: RwLock<Option<BotRunnerInstance>>,
     driver: SearchDriver,
     search_config: SearchConfig,
     log_sender: UnboundedSender<String>,
@@ -34,12 +35,12 @@ impl BotSession {
         self.driver.starts_worker()
     }
 
-    pub fn start(&self, initial_state: Bot) {
+    pub fn start(&self, initial_state: BotInstance) {
         let mut state = self.state.lock();
         state.reset_session_stats();
-        *self.runner.write() = Some(BotRunner::from_rng_config(
+        *self.runner.write() = Some(BotRunnerInstance::from_bot(
             initial_state,
-            &self.search_config.rng,
+            &self.search_config,
             !self.driver.starts_worker(),
         ));
         self.blocker.notify_all();
@@ -70,7 +71,7 @@ impl BotSession {
         self.blocker.notify_all();
     }
 
-    pub fn replace_board(&self, board: Board) {
+    pub fn replace_board(&self, board: BoardSnapshot) {
         let mut state = self.state.lock();
         state.reset_advance_stats();
         let mut runner = self.runner.write();
@@ -90,7 +91,9 @@ impl BotSession {
 
     pub fn drain_logs(&self) -> Vec<String> {
         let mut runner = self.runner.write();
-        runner.as_mut().map_or_else(Vec::new, BotRunner::drain_logs)
+        runner
+            .as_mut()
+            .map_or_else(Vec::new, BotRunnerInstance::drain_logs)
     }
 
     pub fn work_loop(&self) {
@@ -129,5 +132,99 @@ impl BotSession {
             }
             std::thread::yield_now();
         }
+    }
+}
+
+enum BotRunnerInstance {
+    Standard(BotRunner<Board>),
+    Dynamic(BotRunner<DynamicBoard>),
+}
+
+impl BotRunnerInstance {
+    fn from_bot(bot: BotInstance, config: &SearchConfig, thread_local: bool) -> Self {
+        match bot {
+            BotInstance::Standard(bot) => BotRunnerInstance::Standard(BotRunner::from_rng_config(
+                bot,
+                &config.rng,
+                thread_local,
+            )),
+            BotInstance::Dynamic(bot) => BotRunnerInstance::Dynamic(BotRunner::from_rng_config(
+                bot,
+                &config.rng,
+                thread_local,
+            )),
+        }
+    }
+
+    fn suggest(&self) -> Vec<Placement> {
+        match self {
+            BotRunnerInstance::Standard(runner) => runner.suggest(),
+            BotRunnerInstance::Dynamic(runner) => runner.suggest(),
+        }
+    }
+
+    fn step(&self) -> crate::bot::Statistics {
+        match self {
+            BotRunnerInstance::Standard(runner) => runner.step(),
+            BotRunnerInstance::Dynamic(runner) => runner.step(),
+        }
+    }
+
+    fn run_for(&self, budget: crate::search::SearchBudget) -> crate::bot::Statistics {
+        match self {
+            BotRunnerInstance::Standard(runner) => runner.run_for(budget),
+            BotRunnerInstance::Dynamic(runner) => runner.run_for(budget),
+        }
+    }
+
+    fn advance(&mut self, mv: Placement) {
+        match self {
+            BotRunnerInstance::Standard(runner) => runner.advance(mv),
+            BotRunnerInstance::Dynamic(runner) => runner.advance(mv),
+        }
+    }
+
+    fn replace_board(&mut self, board: BoardSnapshot) {
+        match self {
+            BotRunnerInstance::Standard(runner) => {
+                runner.replace_board(board.into_fixed::<10>().expect("active runner is width 10"));
+            }
+            BotRunnerInstance::Dynamic(runner) => {
+                let width = runner.board_width();
+                runner.replace_board(
+                    board
+                        .into_dynamic_width(width)
+                        .expect("replacement board width matches active runner"),
+                );
+            }
+        }
+    }
+
+    fn new_piece(&mut self, piece: Piece) {
+        match self {
+            BotRunnerInstance::Standard(runner) => runner.new_piece(piece),
+            BotRunnerInstance::Dynamic(runner) => runner.new_piece(piece),
+        }
+    }
+
+    fn drain_logs(&mut self) -> Vec<String> {
+        match self {
+            BotRunnerInstance::Standard(runner) => runner.drain_logs(),
+            BotRunnerInstance::Dynamic(runner) => runner.drain_logs(),
+        }
+    }
+}
+
+impl SearchRunner for BotRunnerInstance {
+    fn suggest(&self) -> Vec<Placement> {
+        BotRunnerInstance::suggest(self)
+    }
+
+    fn step(&self) -> crate::bot::Statistics {
+        BotRunnerInstance::step(self)
+    }
+
+    fn run_for(&self, budget: crate::search::SearchBudget) -> crate::bot::Statistics {
+        BotRunnerInstance::run_for(self, budget)
     }
 }

@@ -5,16 +5,21 @@ use ahash::AHashMap;
 
 use crate::tetris::model::rules::{GameRules, SonicDrop};
 use crate::tetris::model::*;
-use crate::tetris::movegen::collision_maps::CollisionMaps;
+use crate::tetris::movegen::collision_maps::CollisionMap;
 use crate::tetris::movegen::spin::detect_spin;
+use crate::tetris::movegen::MovegenBoard;
 
-pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placement, u32)> {
+pub fn find_moves<B: MovegenBoard>(
+    board: &B,
+    piece: Piece,
+    rules: &GameRules,
+) -> Vec<(Placement, u32)> {
     puffin::profile_function!();
     let mut queue = BinaryHeap::new();
     let mut values = AHashMap::new();
     let mut underground_locks = AHashMap::new();
     let mut locks = Vec::with_capacity(64);
-    let collision_map = CollisionMaps::new(board, piece);
+    let collision_map = board.collision_maps(piece);
 
     let fast_mode = rules.sonic_drop == SonicDrop::Only;
     if fast_mode {
@@ -24,11 +29,11 @@ pub fn find_moves(board: &Board, piece: Piece, rules: &GameRules) -> Vec<(Placem
             Rotation::South,
             Rotation::West,
         ] {
-            for x in 0..10 {
+            for x in 0..board.width() {
                 let mut location = PieceLocation {
                     piece,
                     rotation,
-                    x,
+                    x: x as i8,
                     y: rules.spawn_y,
                 };
                 if collision_map.obstructed(location) {
@@ -166,10 +171,13 @@ fn update_position<'a>(
     queue: &'a mut BinaryHeap<Intermediate>,
     values: &'a mut AHashMap<Placement, u32>,
     fast_mode: bool,
-    board: &'a Board,
+    board: &'a impl BoardRepresentation,
 ) -> impl FnMut(Placement, u32) + 'a {
     move |target: Placement, soft_drops: u32| {
-        if fast_mode && target.location.above_stack(board) {
+        if fast_mode
+            && (!target.location.horizontally_in_bounds(board)
+                || target.location.above_stack(board))
+        {
             return;
         }
         let prev_sds = values.entry(target).or_insert(40);
@@ -183,7 +191,11 @@ fn update_position<'a>(
     }
 }
 
-fn shift(mut location: PieceLocation, collision_map: &CollisionMaps, dx: i8) -> Option<Placement> {
+fn shift(
+    mut location: PieceLocation,
+    collision_map: &impl CollisionMap,
+    dx: i8,
+) -> Option<Placement> {
     location.x += dx;
     if collision_map.obstructed(location) {
         return None;
@@ -197,8 +209,8 @@ fn shift(mut location: PieceLocation, collision_map: &CollisionMaps, dx: i8) -> 
 fn rotate_to(
     from: PieceLocation,
     to_rotation: Rotation,
-    collision_map: &CollisionMaps,
-    board: &Board,
+    collision_map: &impl CollisionMap,
+    board: &impl BoardRepresentation,
     rules: &GameRules,
 ) -> Option<Placement> {
     let unkicked = PieceLocation {
@@ -220,8 +232,8 @@ fn rotate_to(
 
 fn rotate(
     unkicked: PieceLocation,
-    collision_map: &CollisionMaps,
-    board: &Board,
+    collision_map: &impl CollisionMap,
+    board: &impl BoardRepresentation,
     rules: &GameRules,
     kicks: impl Iterator<Item = (i8, i8)>,
 ) -> Option<Placement> {

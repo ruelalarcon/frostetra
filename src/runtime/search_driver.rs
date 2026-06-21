@@ -5,6 +5,27 @@ use crate::config::{SearchBudgetConfig, SearchConfig};
 use crate::protocol::sbp::SearchInfo;
 use crate::search::SearchBudget;
 use crate::tetris::model::Placement;
+use crate::tetris::movegen::MovegenBoard;
+
+pub(crate) trait SearchRunner {
+    fn suggest(&self) -> Vec<Placement>;
+    fn step(&self) -> Statistics;
+    fn run_for(&self, budget: SearchBudget) -> Statistics;
+}
+
+impl<B: MovegenBoard> SearchRunner for BotRunner<B> {
+    fn suggest(&self) -> Vec<Placement> {
+        BotRunner::suggest(self)
+    }
+
+    fn step(&self) -> Statistics {
+        BotRunner::step(self)
+    }
+
+    fn run_for(&self, budget: SearchBudget) -> Statistics {
+        BotRunner::run_for(self, budget)
+    }
+}
 
 #[derive(Clone)]
 pub enum SearchDriver {
@@ -46,7 +67,7 @@ impl SearchDriver {
 
     pub fn suggest(
         &self,
-        runner: &BotRunner,
+        runner: &impl SearchRunner,
         state: &mut SearchState,
     ) -> (Vec<Placement>, SearchInfo) {
         match self {
@@ -62,7 +83,11 @@ pub struct BackgroundSearchDriver {
 }
 
 impl BackgroundSearchDriver {
-    fn suggest(&self, runner: &BotRunner, state: &mut SearchState) -> (Vec<Placement>, SearchInfo) {
+    fn suggest(
+        &self,
+        runner: &impl SearchRunner,
+        state: &mut SearchState,
+    ) -> (Vec<Placement>, SearchInfo) {
         let mut suggestion = runner.suggest();
         if suggestion.is_empty() {
             state.accumulate(runner.step());
@@ -79,7 +104,11 @@ pub struct BudgetedSearchDriver {
 }
 
 impl BudgetedSearchDriver {
-    fn suggest(&self, runner: &BotRunner, state: &mut SearchState) -> (Vec<Placement>, SearchInfo) {
+    fn suggest(
+        &self,
+        runner: &impl SearchRunner,
+        state: &mut SearchState,
+    ) -> (Vec<Placement>, SearchInfo) {
         state.accumulate(runner.run_for(self.budget));
         let suggestion = runner.suggest();
         (suggestion, state.search_info())

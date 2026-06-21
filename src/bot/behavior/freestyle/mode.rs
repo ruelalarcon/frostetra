@@ -6,22 +6,23 @@ use crate::bot::behavior::freestyle::score::Eval;
 use crate::bot::behavior::{Behavior, BehaviorSwitch};
 use crate::bot::{BotOptions, Statistics};
 use crate::search::{ChildData, Dag, SearchContext};
-use crate::tetris::model::{GameState, Piece, Placement};
+use crate::tetris::model::{BoardRepresentation, GameState, Piece, Placement};
 use crate::tetris::movegen::find_moves;
+use crate::tetris::movegen::MovegenBoard;
 
-pub struct Freestyle {
-    dag: Dag<Eval>,
+pub struct Freestyle<B: BoardRepresentation> {
+    dag: Dag<Eval, B>,
 }
 
-impl Freestyle {
-    pub fn new(options: &BotOptions, root: GameState, queue: &[Piece]) -> Self {
+impl<B: BoardRepresentation> Freestyle<B> {
+    pub fn new(options: &BotOptions, root: GameState<B>, queue: &[Piece]) -> Self {
         Freestyle {
             dag: Dag::new(root, queue, options.config.search.budget.starts_worker()),
         }
     }
 }
 
-impl Behavior for Freestyle {
+impl<B: MovegenBoard> Behavior<B> for Freestyle<B> {
     fn advance(&mut self, options: &BotOptions, mv: Placement) -> Option<BehaviorSwitch> {
         puffin::profile_function!();
         self.dag.advance(mv, &options.rules);
@@ -72,12 +73,12 @@ impl Behavior for Freestyle {
                         moves[state.reserve].iter()
                     });
                     for &(mv, sd_distance) in moves {
-                        let mut state = state;
+                        let mut state = state.clone();
                         let info = state.advance(next, mv, &options.rules);
 
                         let (eval, reward) = evaluate(
                             &options.config.behaviors.freestyle.weights,
-                            state,
+                            state.clone(),
                             &info,
                             sd_distance,
                         );

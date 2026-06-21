@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 pub use crate::tetris::model::rules::{BackToBackSource, SonicDrop, SpinDetection};
-use crate::tetris::model::{Board, Piece, Placement};
+use crate::tetris::model::{BoardSnapshot, Piece, Placement};
 pub use crate::tetris::movegen::Kickset;
 
 fn default_rot180() -> bool {
@@ -83,7 +83,7 @@ pub enum FrontendMessage {
     },
     Start(Start),
     Board {
-        board: Board,
+        board: BoardSnapshot,
     },
     Play {
         #[serde(rename = "move")]
@@ -138,7 +138,7 @@ pub struct Capabilities {
 
 #[derive(Serialize)]
 pub struct BoardSizeCapability {
-    pub width: u8,
+    pub width: IntRangeCapability,
     pub height: IntRangeCapability,
 }
 
@@ -158,7 +158,7 @@ fn default_back_to_back_sources() -> Vec<BackToBackSource> {
 
 #[derive(Deserialize)]
 pub struct Start {
-    pub board: Board,
+    pub board: BoardSnapshot,
     pub active: Piece,
     pub queue: Vec<Piece>,
     pub hold: Option<Piece>,
