@@ -42,15 +42,9 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
             None => return vec![],
         };
 
-        let mut candidates: Vec<&_> = vec![];
-        candidates.extend(children.first());
-        candidates.sort_by(|a, b| {
-            b.cached_eval
-                .cmp(&a.cached_eval)
-                .then_with(|| a.mv.sort_key().cmp(&b.mv.sort_key()))
-        });
-
-        candidates.into_iter().map(|c| c.mv).collect()
+        children
+            .first()
+            .map_or_else(Vec::new, |child| vec![child.mv])
     }
 
     pub fn select(

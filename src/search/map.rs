@@ -62,7 +62,7 @@ impl BuildHasher for StableStateHasher {
     }
 }
 
-const SHARD_INDEX_BITS: usize = 12;
+const SHARD_INDEX_BITS: usize = 0;
 const SHARD_INDEX_SHIFT: usize = 32;
 const SHARDS: usize = 1 << SHARD_INDEX_BITS;
 

@@ -15,9 +15,9 @@ pub fn find_moves<B: MovegenBoard>(
     rules: &GameRules,
 ) -> Vec<(Placement, u32)> {
     puffin::profile_function!();
-    let mut queue = BinaryHeap::new();
-    let mut values = AHashMap::new();
-    let mut underground_locks = AHashMap::new();
+    let mut queue = BinaryHeap::with_capacity(64);
+    let mut values = AHashMap::with_capacity(128);
+    let mut underground_locks = AHashMap::with_capacity(64);
     let mut locks = Vec::with_capacity(64);
     let collision_map = board.collision_maps(piece);
 
@@ -270,7 +270,7 @@ impl PartialEq for Intermediate {
 
 impl Ord for Intermediate {
     fn cmp(&self, other: &Intermediate) -> Ordering {
-        self.soft_drops.cmp(&other.soft_drops)
+        other.soft_drops.cmp(&self.soft_drops)
     }
 }
 
