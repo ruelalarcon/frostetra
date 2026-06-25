@@ -25,7 +25,7 @@ pub struct Dag<E: Evaluation, B: BoardRepresentation> {
 }
 
 pub struct Selection<'a, E: Evaluation, B: BoardRepresentation> {
-    layers: Vec<&'a LayerCommon<E>>,
+    layers: LayerStack<'a, E>,
     game_state: GameState<B>,
 }
 
@@ -93,6 +93,14 @@ struct ParentLink<'bump> {
     next: Option<&'bump ParentLink<'bump>>,
 }
 
+const INLINE_LAYER_STACK: usize = 16;
+
+pub(super) struct LayerStack<'a, E: Evaluation> {
+    inline: [Option<&'a LayerCommon<E>>; INLINE_LAYER_STACK],
+    len: usize,
+    overflow: Option<Vec<&'a LayerCommon<E>>>,
+}
+
 impl<'bump> Parents<'bump> {
     pub fn push(&mut self, bump: &bumpalo_herd::Member<'bump>, data: Parent) {
         let link = bump.alloc(ParentLink {
@@ -108,6 +116,62 @@ impl<'bump> Parents<'bump> {
             f(link.data);
             current = link.next;
         }
+    }
+}
+
+impl<'a, E: Evaluation> LayerStack<'a, E> {
+    fn new(first: &'a LayerCommon<E>) -> Self {
+        let mut inline = [None; INLINE_LAYER_STACK];
+        inline[0] = Some(first);
+        LayerStack {
+            inline,
+            len: 1,
+            overflow: None,
+        }
+    }
+
+    fn push(&mut self, layer: &'a LayerCommon<E>) {
+        if let Some(overflow) = &mut self.overflow {
+            overflow.push(layer);
+            return;
+        }
+
+        if self.len < INLINE_LAYER_STACK {
+            self.inline[self.len] = Some(layer);
+            self.len += 1;
+        } else {
+            let mut overflow = Vec::with_capacity(INLINE_LAYER_STACK * 2);
+            overflow.extend(self.inline.iter().map(|layer| layer.unwrap()));
+            overflow.push(layer);
+            self.overflow = Some(overflow);
+        }
+    }
+
+    fn pop(&mut self) -> Option<&'a LayerCommon<E>> {
+        if let Some(overflow) = &mut self.overflow {
+            return overflow.pop();
+        }
+
+        if self.len == 0 {
+            None
+        } else {
+            self.len -= 1;
+            self.inline[self.len].take()
+        }
+    }
+
+    fn last(&self) -> Option<&'a LayerCommon<E>> {
+        if let Some(overflow) = &self.overflow {
+            return overflow.last().copied();
+        }
+
+        self.len.checked_sub(1).and_then(|index| self.inline[index])
+    }
+
+    fn len(&self) -> usize {
+        self.overflow
+            .as_ref()
+            .map_or(self.len, |overflow| overflow.len())
     }
 }
 
@@ -169,10 +233,10 @@ impl<E: Evaluation, B: BoardRepresentation> Dag<E, B> {
         context: &SearchContext,
     ) -> Option<Selection<'_, E, B>> {
         puffin::profile_function!();
-        let mut layers = vec![&*self.top_layer];
+        let mut layers = LayerStack::new(&self.top_layer);
         let mut game_state = self.root.clone();
         loop {
-            let &layer = layers.last().unwrap();
+            let layer = layers.last().unwrap();
 
             match layer
                 .kind
