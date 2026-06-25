@@ -5,11 +5,11 @@ use frostetra::tetris::movegen::find_moves;
 
 const PIECES: [Piece; 7] = [
     Piece::I,
-    Piece::O,
-    Piece::T,
-    Piece::L,
     Piece::J,
+    Piece::L,
+    Piece::O,
     Piece::S,
+    Piece::T,
     Piece::Z,
 ];
 

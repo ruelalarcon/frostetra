@@ -27,7 +27,7 @@ macro_rules! lutify {
 
 macro_rules! piece_lut {
     ($v:ident => $e:expr) => {
-        lutify!(($e) for $v in [Piece::I, Piece::O, Piece::T, Piece::L, Piece::J, Piece::S, Piece::Z])
+        lutify!(($e) for $v in [Piece::I, Piece::J, Piece::L, Piece::O, Piece::S, Piece::T, Piece::Z])
     };
 }
 
