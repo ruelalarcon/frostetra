@@ -7,9 +7,16 @@ pub struct SearchConfig {
     pub rng: SearchRngConfig,
     pub budget: SearchBudgetConfig,
     pub threads: NonZeroUsize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accounting_batch: Option<NonZeroUsize>,
 }
 
 impl SearchConfig {
+    pub fn accounting_batch(&self) -> NonZeroUsize {
+        self.accounting_batch
+            .unwrap_or(NonZeroUsize::new(1).unwrap())
+    }
+
     pub(super) fn merge(&mut self, override_config: SearchConfigOverride) {
         if let Some(rng) = override_config.rng {
             self.rng = rng;
@@ -19,6 +26,9 @@ impl SearchConfig {
         }
         if let Some(threads) = override_config.threads {
             self.threads = threads;
+        }
+        if override_config.accounting_batch.is_some() {
+            self.accounting_batch = override_config.accounting_batch;
         }
     }
 }
@@ -34,6 +44,7 @@ impl<'de> Deserialize<'de> for SearchConfig {
             rng: SearchRngConfig,
             budget: SearchBudgetConfig,
             threads: Option<NonZeroUsize>,
+            accounting_batch: Option<NonZeroUsize>,
         }
 
         let config = RequiredSearchConfig::deserialize(deserializer)?;
@@ -41,6 +52,7 @@ impl<'de> Deserialize<'de> for SearchConfig {
             rng: config.rng,
             budget: config.budget,
             threads: config.threads.unwrap_or(NonZeroUsize::new(1).unwrap()),
+            accounting_batch: config.accounting_batch,
         })
     }
 }
@@ -51,6 +63,7 @@ pub(super) struct SearchConfigOverride {
     rng: Option<SearchRngConfig>,
     budget: Option<SearchBudgetConfig>,
     threads: Option<NonZeroUsize>,
+    accounting_batch: Option<NonZeroUsize>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

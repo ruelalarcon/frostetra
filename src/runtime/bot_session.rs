@@ -98,7 +98,7 @@ impl BotSession {
     }
 
     pub fn work_loop(&self, worker: usize) {
-        const ACCOUNTING_BATCH: usize = 16;
+        let accounting_batch = self.search_config.accounting_batch().get();
         let context = SearchContext::from_rng_config(&self.search_config.rng, worker);
 
         loop {
@@ -123,7 +123,7 @@ impl BotSession {
             };
 
             let mut new_stats = crate::bot::Statistics::default();
-            for _ in 0..ACCOUNTING_BATCH {
+            for _ in 0..accounting_batch {
                 new_stats.accumulate(runner.step_with_context(&context));
             }
             drop(runner_guard);
@@ -141,6 +141,7 @@ impl BotSession {
                     state.stats.max_depth
                 ));
             }
+            std::thread::yield_now();
         }
     }
 }

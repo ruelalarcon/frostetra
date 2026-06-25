@@ -200,16 +200,34 @@ Background mode can use multiple worker threads to search in parallel. Add a
 ```json
 {
   "search": {
-    "threads": 8
+    "threads": 4
   }
 }
 ```
 
 `threads` only affects `background` mode (the per-suggestion budgets are
-single-threaded by design). Seeded background workers use independent,
-repeatable random streams. Because workers update one shared DAG concurrently,
-the exact search path and resulting move can still vary with scheduling; use a
-single worker when exact replay is required.
+single-threaded by design). The embedded default is 4 background workers.
+Seeded background workers use independent, repeatable random streams. Because
+workers update one shared DAG concurrently, the exact search path and resulting
+move can still vary with scheduling; use a single worker when exact replay is
+required.
+
+Background workers publish their accumulated search statistics after each search
+step by default, so `accounting_batch` defaults to 1. If you want to trade
+gameplay responsiveness for higher raw background node generation, set
+`accounting_batch` to a larger value:
+
+```json
+{
+  "search": {
+    "accounting_batch": 4
+  }
+}
+```
+
+Larger batches reduce bookkeeping overhead but hold the shared search read lock
+for longer, so runner updates such as `play`, `board`, and `new_piece` may wait
+longer.
 
 ## Protocol Capabilities
 
