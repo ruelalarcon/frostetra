@@ -16,8 +16,22 @@ pub struct Freestyle<B: BoardRepresentation> {
 
 impl<B: BoardRepresentation> Freestyle<B> {
     pub fn new(options: &BotOptions, root: GameState<B>, queue: &[Piece]) -> Self {
+        let locking = options.config.search.budget.starts_worker();
+        let shard_count = if locking {
+            // Search touches several layers for every expansion. Contention
+            // testing found that a high shard density pays for its modest
+            // per-layer memory cost by keeping unrelated states independent.
+            let workers = options.config.search.threads.get();
+            if workers == 1 {
+                1
+            } else {
+                workers.saturating_mul(16).next_power_of_two()
+            }
+        } else {
+            1
+        };
         Freestyle {
-            dag: Dag::new(root, queue, options.config.search.budget.starts_worker()),
+            dag: Dag::new(root, queue, locking, shard_count),
         }
     }
 }

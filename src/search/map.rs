@@ -14,9 +14,13 @@ use crate::tetris::model::{BoardRepresentation, GameState};
 pub struct StateMap<V, S = StableStateHasher> {
     hasher: S,
     locking: bool,
+    shard_mask: usize,
     buckets: Box<[Bucket<V>]>,
 }
 
+// Each shard has a hot lock word. Keep different locks on distinct cache
+// lines so simultaneous acquisitions do not cause false sharing.
+#[repr(align(64))]
 struct Bucket<V> {
     lock: RwLock<()>,
     map: UnsafeCell<IntMap<u64, V>>,
@@ -62,22 +66,28 @@ impl BuildHasher for StableStateHasher {
     }
 }
 
-const SHARD_INDEX_BITS: usize = 0;
 const SHARD_INDEX_SHIFT: usize = 32;
-const SHARDS: usize = 1 << SHARD_INDEX_BITS;
+pub(crate) const DEFAULT_SHARDS: usize = 16;
 
 impl<V, S: Default> Default for StateMap<V, S> {
     fn default() -> Self {
-        Self::new(true)
+        Self::new(true, DEFAULT_SHARDS)
     }
 }
 
 impl<V, S: Default> StateMap<V, S> {
-    pub(crate) fn new(locking: bool) -> Self {
-        let shards = if locking { SHARDS } else { 1 };
+    pub(crate) fn new(locking: bool, shard_count: usize) -> Self {
+        let shards = if locking {
+            // Shard selection is a mask in the hot path, so normalize the
+            // requested count once during construction.
+            shard_count.max(1).next_power_of_two()
+        } else {
+            1
+        };
         StateMap {
             hasher: Default::default(),
             locking,
+            shard_mask: shards - 1,
             buckets: std::iter::repeat_with(|| Bucket {
                 lock: RwLock::new(()),
                 map: UnsafeCell::new(IntMap::default()),
@@ -104,11 +114,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
     }
 
     fn bucket(&self, k: u64) -> &Bucket<V> {
-        if self.locking {
-            &self.buckets[(k >> SHARD_INDEX_SHIFT) as usize % SHARDS]
-        } else {
-            &self.buckets[0]
-        }
+        &self.buckets[((k >> SHARD_INDEX_SHIFT) as usize) & self.shard_mask]
     }
 
     pub fn get_raw(&self, k: u64) -> Option<StateReadGuard<'_, V>> {
@@ -145,15 +151,24 @@ impl<V, S: BuildHasher> StateMap<V, S> {
 
     pub fn get_raw_or_insert_with(&self, k: u64, f: impl FnOnce() -> V) -> StateWriteGuard<'_, V> {
         let bucket = self.bucket(k);
-        let lock = self.locking.then(|| bucket.lock.write());
-        // SAFETY: locked maps hold the bucket write lock; local maps have
-        // already passed BotRunner's thread-owner guard before search reached
-        // the DAG.
-        let value = unsafe { (&mut *bucket.map.get()).entry(k).or_insert_with(f) as *mut V };
-        StateWriteGuard {
-            _lock: lock,
-            value,
-            _marker: PhantomData,
+        if self.locking {
+            let lock = bucket.lock.write();
+            // SAFETY: bucket write lock held.
+            let value = unsafe { (&mut *bucket.map.get()).entry(k).or_insert_with(f) as *mut V };
+            StateWriteGuard {
+                _lock: Some(lock),
+                value,
+                _marker: PhantomData,
+            }
+        } else {
+            // Local (unlocked) map: rely on BotRunner's thread-owner guard.
+            // SAFETY: BotRunner's thread-owner guard has been checked.
+            let value = unsafe { (&mut *bucket.map.get()).entry(k).or_insert_with(f) as *mut V };
+            StateWriteGuard {
+                _lock: None,
+                value,
+                _marker: PhantomData,
+            }
         }
     }
 
@@ -169,6 +184,7 @@ impl<V, S: BuildHasher> StateMap<V, S> {
         StateMap {
             hasher: self.hasher,
             locking: self.locking,
+            shard_mask: self.shard_mask,
             buckets: self
                 .buckets
                 .into_vec()

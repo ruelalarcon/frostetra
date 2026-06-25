@@ -192,6 +192,25 @@ piece stream, and SBP message sequence. Determinism is useful for optimizers
 because it keeps evaluator weight comparisons from being polluted by timing or
 ambient RNG differences.
 
+### Multi-Threaded Search
+
+Background mode can use multiple worker threads to search in parallel. Add a
+`threads` field to the `search` section:
+
+```json
+{
+  "search": {
+    "threads": 8
+  }
+}
+```
+
+`threads` only affects `background` mode (the per-suggestion budgets are
+single-threaded by design). Seeded background workers use independent,
+repeatable random streams. Because workers update one shared DAG concurrently,
+the exact search path and resulting move can still vary with scheduling; use a
+single worker when exact replay is required.
+
 ## Protocol Capabilities
 
 On startup, Frostetra sends an SBP `register` message with these capabilities:

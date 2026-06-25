@@ -1,9 +1,12 @@
+use std::num::NonZeroUsize;
+
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Serialize, Debug, Clone)]
 pub struct SearchConfig {
     pub rng: SearchRngConfig,
     pub budget: SearchBudgetConfig,
+    pub threads: NonZeroUsize,
 }
 
 impl SearchConfig {
@@ -13,6 +16,9 @@ impl SearchConfig {
         }
         if let Some(budget) = override_config.budget {
             self.budget = budget;
+        }
+        if let Some(threads) = override_config.threads {
+            self.threads = threads;
         }
     }
 }
@@ -27,12 +33,14 @@ impl<'de> Deserialize<'de> for SearchConfig {
         struct RequiredSearchConfig {
             rng: SearchRngConfig,
             budget: SearchBudgetConfig,
+            threads: Option<NonZeroUsize>,
         }
 
         let config = RequiredSearchConfig::deserialize(deserializer)?;
         Ok(SearchConfig {
             rng: config.rng,
             budget: config.budget,
+            threads: config.threads.unwrap_or(NonZeroUsize::new(1).unwrap()),
         })
     }
 }
@@ -42,6 +50,7 @@ impl<'de> Deserialize<'de> for SearchConfig {
 pub(super) struct SearchConfigOverride {
     rng: Option<SearchRngConfig>,
     budget: Option<SearchBudgetConfig>,
+    threads: Option<NonZeroUsize>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

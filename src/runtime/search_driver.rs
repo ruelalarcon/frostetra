@@ -117,6 +117,7 @@ impl BudgetedSearchDriver {
 
 #[derive(Copy, Clone, Debug)]
 pub struct SearchState {
+    pub generation: u64,
     pub stats: Statistics,
     pub last_advance: Instant,
     pub node_limit: u64,
@@ -128,6 +129,7 @@ pub struct SearchState {
 impl SearchState {
     pub fn new(node_limit: u64) -> Self {
         SearchState {
+            generation: 0,
             stats: Default::default(),
             last_advance: Instant::now(),
             node_limit,
@@ -138,6 +140,7 @@ impl SearchState {
     }
 
     pub fn reset_session_stats(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
         let now = Instant::now();
         self.stats = Default::default();
         self.logged_node_limit = false;
@@ -147,6 +150,7 @@ impl SearchState {
     }
 
     pub fn reset_advance_stats(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
         self.stats = Default::default();
         self.last_advance = Instant::now();
     }

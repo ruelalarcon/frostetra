@@ -6,6 +6,7 @@ use crate::config::SearchConfig;
 use crate::protocol::sbp::SearchInfo;
 use crate::runtime::bot_factory::BotInstance;
 use crate::runtime::search_driver::{SearchDriver, SearchRunner, SearchState};
+use crate::search::SearchContext;
 use crate::tetris::model::{Board, BoardSnapshot, DynamicBoard, Piece, Placement};
 
 pub struct BotSession {
@@ -96,15 +97,19 @@ impl BotSession {
             .map_or_else(Vec::new, BotRunnerInstance::drain_logs)
     }
 
-    pub fn work_loop(&self) {
+    pub fn work_loop(&self, worker: usize) {
+        const ACCOUNTING_BATCH: usize = 16;
+        let context = SearchContext::from_rng_config(&self.search_config.rng, worker);
+
         loop {
-            {
+            let generation = {
                 let mut state = self.state.lock();
                 if state.stats.nodes >= state.node_limit {
                     self.blocker.wait(&mut state);
                     continue;
                 }
-            }
+                state.generation
+            };
 
             let runner_guard = self.runner.read();
             let runner = match &*runner_guard {
@@ -117,10 +122,16 @@ impl BotSession {
                 }
             };
 
-            let new_stats = runner.step();
+            let mut new_stats = crate::bot::Statistics::default();
+            for _ in 0..ACCOUNTING_BATCH {
+                new_stats.accumulate(runner.step_with_context(&context));
+            }
             drop(runner_guard);
 
             let mut state = self.state.lock();
+            if state.generation != generation {
+                continue;
+            }
             state.accumulate(new_stats);
             if !state.logged_node_limit && state.stats.nodes >= state.node_limit {
                 state.logged_node_limit = true;
@@ -130,7 +141,6 @@ impl BotSession {
                     state.stats.max_depth
                 ));
             }
-            std::thread::yield_now();
         }
     }
 }
@@ -167,6 +177,13 @@ impl BotRunnerInstance {
         match self {
             BotRunnerInstance::Standard(runner) => runner.step(),
             BotRunnerInstance::Dynamic(runner) => runner.step(),
+        }
+    }
+
+    fn step_with_context(&self, context: &SearchContext) -> crate::bot::Statistics {
+        match self {
+            BotRunnerInstance::Standard(runner) => runner.step_with_context(context),
+            BotRunnerInstance::Dynamic(runner) => runner.step_with_context(context),
         }
     }
 

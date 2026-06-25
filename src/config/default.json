@@ -9,7 +9,8 @@
     "budget": {
       "mode": "background",
       "node_limit": 3000000
-    }
+    },
+    "threads": 8
   },
   "behaviors": {
     "freestyle": {

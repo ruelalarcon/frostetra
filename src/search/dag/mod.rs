@@ -40,6 +40,7 @@ pub(super) struct LayerCommon<E: Evaluation> {
     next_layer: OnceCell<Box<LayerCommon<E>>>,
     kind: WithBump<E>,
     locking: bool,
+    shard_count: usize,
 }
 
 #[self_referencing]
@@ -111,8 +112,8 @@ impl<'bump> Parents<'bump> {
 }
 
 impl<E: Evaluation, B: BoardRepresentation> Dag<E, B> {
-    pub fn new(root: GameState<B>, queue: &[Piece], locking: bool) -> Self {
-        let mut top_layer = LayerCommon::new(locking);
+    pub fn new(root: GameState<B>, queue: &[Piece], locking: bool, shard_count: usize) -> Self {
+        let mut top_layer = LayerCommon::new(locking, shard_count);
         top_layer.kind.initialize_root(&root);
 
         let mut layer = &mut top_layer;
@@ -260,24 +261,25 @@ fn child_precedes<E: Evaluation>(left: &Child<E>, right: &Child<E>) -> bool {
 }
 
 impl<E: Evaluation> LayerCommon<E> {
-    fn new(locking: bool) -> Self {
+    fn new(locking: bool, shard_count: usize) -> Self {
         LayerCommon {
             next_layer: OnceCell::new(),
-            kind: WithBump::new_with_locking(locking),
+            kind: WithBump::new_with_locking(locking, shard_count),
             locking,
+            shard_count,
         }
     }
 
     fn force_next_layer(&self) -> &LayerCommon<E> {
         self.next_layer
-            .get_or_init(|| Box::new(LayerCommon::new(self.locking)))
+            .get_or_init(|| Box::new(LayerCommon::new(self.locking, self.shard_count)))
     }
 
     fn force_next_layer_mut(&mut self) -> &mut LayerCommon<E> {
         if self.next_layer.get().is_none() {
             let _ = self
                 .next_layer
-                .set(Box::new(LayerCommon::new(self.locking)));
+                .set(Box::new(LayerCommon::new(self.locking, self.shard_count)));
         }
         self.next_layer.get_mut().unwrap()
     }
@@ -285,7 +287,7 @@ impl<E: Evaluation> LayerCommon<E> {
 
 impl<E: Evaluation> Default for LayerCommon<E> {
     fn default() -> Self {
-        LayerCommon::new(true)
+        LayerCommon::new(true, crate::search::map::DEFAULT_SHARDS)
     }
 }
 
@@ -411,14 +413,14 @@ impl<E: Evaluation> WithBump<E> {
 
 impl<E: Evaluation> Default for WithBump<E> {
     fn default() -> Self {
-        Self::new_with_locking(true)
+        Self::new_with_locking(true, crate::search::map::DEFAULT_SHARDS)
     }
 }
 
 impl<E: Evaluation> WithBump<E> {
-    fn new_with_locking(locking: bool) -> Self {
+    fn new_with_locking(locking: bool, shard_count: usize) -> Self {
         WithBump::new(Herd::new(), |_| {
-            LayerKind::Speculated(speculated::Layer::new(locking))
+            LayerKind::Speculated(speculated::Layer::new(locking, shard_count))
         })
     }
 }

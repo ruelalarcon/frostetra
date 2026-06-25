@@ -28,9 +28,9 @@ pub(super) struct Node<'bump, E: Evaluation> {
 }
 
 impl<'bump, E: Evaluation> Layer<'bump, E> {
-    pub fn new(locking: bool) -> Self {
+    pub fn new(locking: bool, shard_count: usize) -> Self {
         Layer {
-            states: StateMap::new(locking),
+            states: StateMap::new(locking, shard_count),
         }
     }
 

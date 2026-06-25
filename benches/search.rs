@@ -1,10 +1,12 @@
-use std::sync::Arc;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, Barrier};
+use std::thread;
 
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use enumset::EnumSet;
 use frostetra::bot::{Bot, BotOptions, BotRunner};
 use frostetra::config::BotConfig;
-use frostetra::search::SearchBudget;
+use frostetra::search::{SearchBudget, SearchContext};
 use frostetra::tetris::model::rules::GameRules;
 use frostetra::tetris::model::{Board, GameState, Piece};
 
@@ -30,6 +32,18 @@ fn root(board: Board) -> GameState<Board> {
 
 fn runner(board: Board) -> BotRunner<Board> {
     let bot = Bot::new(options(), root(board), &QUEUE, None);
+    BotRunner::from_seed(bot, 0, false)
+}
+
+fn runner_with_threads(board: Board, threads: NonZeroUsize) -> BotRunner<Board> {
+    let mut config = (*options().config).clone();
+    config.search.threads = threads;
+    let opts = BotOptions {
+        speculate: false,
+        rules: GameRules::default(),
+        config: Arc::new(config),
+    };
+    let bot = Bot::new(opts, root(board), &QUEUE, None);
     BotRunner::from_seed(bot, 0, false)
 }
 
@@ -137,6 +151,53 @@ fn bench_search(c: &mut Criterion) {
             BatchSize::SmallInput,
         )
     });
+
+    // Multi-threaded scaling benchmark. Spins up `threads` worker threads
+    // that each call `runner.step()` on the same shared `BotRunner`. The
+    // per-step work is small (32 nodes), so this stresses lock contention
+    // and per-bucket serialization.
+    let bench_threads: &[NonZeroUsize] = &[
+        NonZeroUsize::new(1).unwrap(),
+        NonZeroUsize::new(2).unwrap(),
+        NonZeroUsize::new(4).unwrap(),
+        NonZeroUsize::new(8).unwrap(),
+        NonZeroUsize::new(16).unwrap(),
+    ];
+    for &threads in bench_threads {
+        c.bench_function(&format!("par_search/t{}_nodes", threads.get()), |b| {
+            b.iter_batched(
+                || Arc::new(runner_with_threads(board_tspin(), threads)),
+                |runner| {
+                    let barrier = Arc::new(Barrier::new(threads.get()));
+                    let mut handles = Vec::with_capacity(threads.get());
+                    let iters_per_thread = (1024 / threads.get() as u64).max(1);
+                    for worker in 0..threads.get() {
+                        let runner = runner.clone();
+                        let barrier = barrier.clone();
+                        handles.push(thread::spawn(move || {
+                            barrier.wait();
+                            let mut total = 0u64;
+                            let context = SearchContext::from_seed(black_box(worker as u64));
+                            for _ in 0..iters_per_thread {
+                                let mut stats = 0;
+                                while stats < 32 {
+                                    stats += runner.step_with_context(&context).nodes;
+                                }
+                                total += stats;
+                            }
+                            total
+                        }));
+                    }
+                    let mut total = 0u64;
+                    for h in handles {
+                        total += h.join().unwrap();
+                    }
+                    black_box(total)
+                },
+                BatchSize::SmallInput,
+            )
+        });
+    }
 }
 
 criterion_group!(benchmark, bench_search);

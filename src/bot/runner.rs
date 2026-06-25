@@ -45,6 +45,13 @@ impl<B: MovegenBoard> BotRunner<B> {
         self.step_unchecked()
     }
 
+    /// Runs one shared-DAG expansion using a caller-owned random stream.
+    /// Background workers use this so they never contend on the runner's RNG.
+    pub fn step_with_context(&self, context: &SearchContext) -> Statistics {
+        self.assert_thread_owner();
+        self.bot.step_search(context)
+    }
+
     pub fn run_for(&self, budget: SearchBudget) -> Statistics {
         self.assert_thread_owner();
         match budget {

@@ -65,7 +65,7 @@ pub async fn run(
     let mut log_receiver = log_receiver.fuse();
     let bot = Arc::new(BotSession::new(log_sender, config.search.clone()));
     if bot.starts_worker() {
-        spawn_workers(&bot);
+        spawn_workers(&bot, config.search.threads);
     }
 
     let mut waiting_on_first_piece = None;
@@ -201,9 +201,9 @@ async fn send_logs(
     }
 }
 
-fn spawn_workers(bot: &Arc<BotSession>) {
-    for _ in 0..1 {
+fn spawn_workers(bot: &Arc<BotSession>, threads: std::num::NonZeroUsize) {
+    for worker in 0..threads.get() {
         let bot = bot.clone();
-        std::thread::spawn(move || bot.work_loop());
+        std::thread::spawn(move || bot.work_loop(worker));
     }
 }
