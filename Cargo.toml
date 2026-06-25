@@ -15,6 +15,11 @@ crate-type = ["rlib"]
 name = "frostetra"
 path = "src/main.rs"
 
+[[bin]]
+name = "profile"
+path = "src/bin/profile/main.rs"
+required-features = ["profiling"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -39,6 +44,13 @@ serde_json = "1.0.64"
 structopt = "0.3.25"
 
 [features]
+profiling = []
+
+[profile.release]
+debug = "line-tables-only"
+
+[profile.bench]
+debug = "line-tables-only"
 
 [dev-dependencies]
 criterion = "0.3.5"

@@ -306,6 +306,91 @@ cargo run --features puffin_http -- --profile
 
 By default, the profiler listens on Puffin's default HTTP port.
 
+### CPU Profiling With VTune
+
+For sampling profiles, use Intel VTune Profiler with the opt-in fixed-work
+search harness. The harness runs deterministic node-budgeted search without SBP
+or Criterion overhead, then prints useful-work counters.
+
+Install VTune:
+
+- Download the standalone VTune installer from
+  [Get Intel VTune Profiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler-download.html).
+- Follow Intel's
+  [VTune installation guide](https://www.intel.com/content/www/us/en/docs/vtune-profiler/installation-guide/2026-0/overview.html)
+  for Windows or Linux.
+- If the `vtune` command is not on `PATH` after installation, open an Intel
+  oneAPI command prompt on Windows or source the oneAPI environment script on
+  Linux.
+
+Build the harness:
+
+```bash
+cargo build --release --features profiling --bin profile
+```
+
+Run the harness directly:
+
+```powershell
+# Windows
+target\release\profile.exe search --batches 10000 --nodes 32 --board tspin
+```
+
+```bash
+# Linux
+target/release/profile search --batches 10000 --nodes 32 --board tspin
+```
+
+Collect a VTune hotspots profile:
+
+```powershell
+# Windows
+New-Item -ItemType Directory -Force target\profiles
+vtune -collect hotspots -result-dir target\profiles\vtune-search -- target\release\profile.exe search --batches 10000 --nodes 32 --board tspin
+```
+
+```bash
+# Linux
+mkdir -p target/profiles
+vtune -collect hotspots -result-dir target/profiles/vtune-search -- target/release/profile search --batches 10000 --nodes 32 --board tspin
+```
+
+Export text reports from the VTune result:
+
+```powershell
+# Windows
+vtune -report hotspots -r target\profiles\vtune-search -format csv -report-output target\profiles\vtune-search-hotspots.csv
+vtune -report hotspots -r target\profiles\vtune-search -group-by source-file-path,source-line -format csv -report-output target\profiles\vtune-search-lines.csv
+vtune -report summary -r target\profiles\vtune-search -report-output target\profiles\vtune-search-summary.txt
+```
+
+```bash
+# Linux
+vtune -report hotspots -r target/profiles/vtune-search -format csv -report-output target/profiles/vtune-search-hotspots.csv
+vtune -report hotspots -r target/profiles/vtune-search -group-by source-file-path,source-line -format csv -report-output target/profiles/vtune-search-lines.csv
+vtune -report summary -r target/profiles/vtune-search -report-output target/profiles/vtune-search-summary.txt
+```
+
+The `hotspots` CSV, source-line CSV, and summary text reports are intended to be
+checked into a temporary profiling notes workflow or compared locally; do not
+commit generated `target/profiles` output.
+On non-Intel CPUs, or without VTune's sampling driver enabled, deeper
+microarchitecture insights may be unavailable; the basic hotspots report is
+still useful for source-level CPU time.
+
+Useful harness options:
+
+```text
+--batches N                   Number of repeated fixed-work batches.
+--nodes N                     Search nodes per batch.
+--board empty|tspin|terrible  Initial board shape.
+--locked                      Use the background/locked DAG configuration.
+--threads N                   Configure background worker shard density.
+```
+
+Release and bench builds include line-table debug info so sampled stacks can map
+back to source locations without substantially changing optimized codegen.
+
 ## License
 
 Frostetra is descended from Cold Clear 2 by Mark Carlson (MinusKelvin). It is licensed under
