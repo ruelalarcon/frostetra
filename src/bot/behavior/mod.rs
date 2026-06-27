@@ -73,6 +73,14 @@ impl Default for BehaviorKind {
     }
 }
 
+impl BehaviorKind {
+    pub(super) fn name(self) -> &'static str {
+        match self {
+            BehaviorKind::Freestyle => "freestyle",
+        }
+    }
+}
+
 pub(super) trait Behavior<B: BoardRepresentation> {
     fn advance(&mut self, options: &BotOptions, mv: Placement) -> Option<BehaviorSwitch>;
     fn new_piece(&mut self, options: &BotOptions, piece: Piece);

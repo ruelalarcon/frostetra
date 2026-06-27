@@ -98,7 +98,17 @@ impl<B: MovegenBoard> Bot<B> {
 
     fn switch(&mut self, to: BehaviorSwitch) {
         puffin::profile_function!();
-        self.rebuild_behavior(to.target());
+        let from = self.behavior.kind();
+        let target = to.target();
+        if from == target {
+            return;
+        }
+        self.logs.push(format!(
+            "behavior switched: {} -> {}",
+            from.name(),
+            target.name()
+        ));
+        self.rebuild_behavior(target);
     }
 
     fn maybe_start_speculation(&mut self) -> bool {
