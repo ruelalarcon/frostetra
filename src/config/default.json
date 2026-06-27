@@ -28,14 +28,14 @@
         "wasted_t": -1.52,
         "softdrop": -0.03,
         "normal_clears": [0.0, -1.43, -1.0, -0.58, 3.9],
-        "t_spin_clears": [0.0, 1.21, 4.1, 6.02],
-        "t_spin_mini_clears": [0.0, -1.58, -0.93, 2.01],
-        "allspin_clears": [0.0, 0.4, 1.37, 2.01],
-        "allspin_mini_clears": [0.0, 0.4, 1.37, 2.01],
-        "back_to_back_clear": 1.04,
+        "t_spin_clears": [0.0, 0.25, 5.0, 4.25],
+        "t_spin_mini_clears": [0.0, -1.25, -0.75, 1.0],
+        "allspin_clears": [0.0, 1.75, 1.15, 0.75],
+        "allspin_mini_clears": [0.0, 1.75, 1.15, 0.75],
+        "back_to_back_clear": 1.35,
         "combo_attack": 1.5,
-        "perfect_clear": 9.99,
-        "perfect_clear_override": true
+        "perfect_clear": 5.0,
+        "perfect_clear_override": false
       },
       "exploitation": 0.6931471805599453
     }
