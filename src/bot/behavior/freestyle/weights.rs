@@ -9,6 +9,9 @@ pub struct Weights {
     pub height: f32,
     pub height_upper_half: f32,
     pub height_upper_quarter: f32,
+    pub garbage_pressure_activation_height: u32,
+    pub garbage_pressure_rows: u32,
+    pub garbage_pressure_weight: f32,
     pub tetris_well_depth: f32,
     pub tslot: [f32; 4],
 
