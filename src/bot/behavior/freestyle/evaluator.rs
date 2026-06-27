@@ -40,6 +40,7 @@ pub fn evaluate<B: BoardRepresentation>(
     }
     if state.back_to_back > 0 {
         eval += weights.has_back_to_back;
+        eval += weights.back_to_back_depth * state.back_to_back as f32;
     }
     reward += weights.softdrop * softdrop as f32;
 

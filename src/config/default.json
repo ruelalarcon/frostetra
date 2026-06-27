@@ -25,6 +25,7 @@
         "tetris_well_depth": 0.57,
         "tslot": [0.08, 1.48, 1.92, 4.07],
         "has_back_to_back": 0.52,
+        "back_to_back_depth": 0.06,
         "wasted_t": -1.52,
         "softdrop": -0.03,
         "normal_clears": [0.0, -1.43, -1.0, -0.58, 3.9],

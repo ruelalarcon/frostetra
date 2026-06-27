@@ -13,6 +13,7 @@ pub struct Weights {
     pub tslot: [f32; 4],
 
     pub has_back_to_back: f32,
+    pub back_to_back_depth: f32,
     pub wasted_t: f32,
     pub softdrop: f32,
 
