@@ -141,7 +141,7 @@ async fn handle_frontend_message(
                     .unwrap();
             }
         }
-        FrontendMessage::Play { mv } => {
+        FrontendMessage::Advance { mv } => {
             bot.advance(mv);
             send_logs(outgoing, bot.drain_logs()).await;
             puffin::GlobalProfiler::lock().new_frame();

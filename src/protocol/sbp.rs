@@ -85,7 +85,7 @@ pub enum FrontendMessage {
     Board {
         board: BoardSnapshot,
     },
-    Play {
+    Advance {
         #[serde(rename = "move")]
         mv: Placement,
     },
