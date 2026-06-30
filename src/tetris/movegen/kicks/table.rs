@@ -38,11 +38,39 @@ impl KickTable {
             Piece::Z => self.z,
         };
 
+        let Some(index) = transition_index(from, to) else {
+            return NO_KICKS;
+        };
+        // Kick tables are stored in transition_index order. Direct indexing
+        // avoids a linear scan in movegen's rotation hot path; debug builds
+        // verify that table declarations keep this order.
         transitions
-            .iter()
-            .find_map(|transition| {
-                (transition.from == from && transition.to == to).then_some(transition.kicks)
+            .get(index)
+            .map(|transition| {
+                debug_assert_eq!(transition.from, from);
+                debug_assert_eq!(transition.to, to);
+                transition.kicks
             })
             .unwrap_or(NO_KICKS)
+    }
+}
+
+const fn transition_index(from: Rotation, to: Rotation) -> Option<usize> {
+    use Rotation::*;
+
+    match (from, to) {
+        (North, East) => Some(0),
+        (East, North) => Some(1),
+        (East, South) => Some(2),
+        (South, East) => Some(3),
+        (South, West) => Some(4),
+        (West, South) => Some(5),
+        (West, North) => Some(6),
+        (North, West) => Some(7),
+        (North, South) => Some(8),
+        (East, West) => Some(9),
+        (South, North) => Some(10),
+        (West, East) => Some(11),
+        _ => None,
     }
 }

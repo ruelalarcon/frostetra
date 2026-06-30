@@ -3,7 +3,7 @@ use std::collections::BinaryHeap;
 
 use ahash::AHashMap;
 
-use crate::tetris::model::rules::{GameRules, SonicDrop};
+use crate::tetris::model::rules::{GameRules, SonicDrop, SpinDetection};
 use crate::tetris::model::*;
 use crate::tetris::movegen::collision_maps::CollisionMap;
 use crate::tetris::movegen::spin::detect_spin;
@@ -22,6 +22,7 @@ pub fn find_moves<B: MovegenBoard>(
     let collision_map = board.collision_maps(piece);
 
     let fast_mode = rules.sonic_drop == SonicDrop::Only;
+    let can_rotate = piece != Piece::O;
     if fast_mode {
         for &rotation in &[
             Rotation::North,
@@ -39,7 +40,7 @@ pub fn find_moves<B: MovegenBoard>(
                 if collision_map.obstructed(location) {
                     continue;
                 }
-                let distance = location.drop_distance(board);
+                let distance = collision_map.drop_distance(location);
                 location.y -= distance;
                 let mv = Placement {
                     location,
@@ -47,7 +48,7 @@ pub fn find_moves<B: MovegenBoard>(
                 };
 
                 let mut update_position =
-                    update_position(&mut queue, &mut values, fast_mode, board);
+                    update_position(&mut queue, &mut values, fast_mode, &collision_map);
 
                 if let Some(mv) = shift(location, &collision_map, -1) {
                     update_position(mv, distance as u32);
@@ -55,20 +56,24 @@ pub fn find_moves<B: MovegenBoard>(
                 if let Some(mv) = shift(location, &collision_map, 1) {
                     update_position(mv, distance as u32);
                 }
-                for rotation in [location.rotation.cw(), location.rotation.ccw()] {
-                    if let Some(mv) = rotate_to(location, rotation, &collision_map, board, rules) {
-                        update_position(mv, distance as u32);
+                if can_rotate {
+                    for rotation in [location.rotation.cw(), location.rotation.ccw()] {
+                        if let Some(mv) =
+                            rotate_to(location, rotation, &collision_map, board, rules)
+                        {
+                            update_position(mv, distance as u32);
+                        }
                     }
-                }
-                if rules.rot180 {
-                    if let Some(mv) = rotate_to(
-                        location,
-                        location.rotation.flip(),
-                        &collision_map,
-                        board,
-                        rules,
-                    ) {
-                        update_position(mv, distance as u32);
+                    if rules.rot180 {
+                        if let Some(mv) = rotate_to(
+                            location,
+                            location.rotation.flip(),
+                            &collision_map,
+                            board,
+                            rules,
+                        ) {
+                            update_position(mv, distance as u32);
+                        }
                     }
                 }
 
@@ -106,7 +111,7 @@ pub fn find_moves<B: MovegenBoard>(
             continue;
         }
 
-        let drop_dist = expand.mv.location.drop_distance(board);
+        let drop_dist = collision_map.drop_distance(expand.mv.location);
         let dropped = Placement {
             location: PieceLocation {
                 y: expand.mv.location.y - drop_dist,
@@ -130,7 +135,8 @@ pub fn find_moves<B: MovegenBoard>(
             *entry = (dropped, expand.soft_drops);
         }
 
-        let mut update_position = update_position(&mut queue, &mut values, fast_mode, board);
+        let mut update_position =
+            update_position(&mut queue, &mut values, fast_mode, &collision_map);
 
         update_position(dropped, expand.soft_drops + drop_dist as u32);
 
@@ -140,30 +146,33 @@ pub fn find_moves<B: MovegenBoard>(
         if let Some(mv) = shift(expand.mv.location, &collision_map, 1) {
             update_position(mv, expand.soft_drops);
         }
-        for rotation in [
-            expand.mv.location.rotation.cw(),
-            expand.mv.location.rotation.ccw(),
-        ] {
-            if let Some(mv) = rotate_to(expand.mv.location, rotation, &collision_map, board, rules)
-            {
-                update_position(mv, expand.soft_drops);
+        if can_rotate {
+            for rotation in [
+                expand.mv.location.rotation.cw(),
+                expand.mv.location.rotation.ccw(),
+            ] {
+                if let Some(mv) =
+                    rotate_to(expand.mv.location, rotation, &collision_map, board, rules)
+                {
+                    update_position(mv, expand.soft_drops);
+                }
             }
-        }
-        if rules.rot180 {
-            if let Some(mv) = rotate_to(
-                expand.mv.location,
-                expand.mv.location.rotation.flip(),
-                &collision_map,
-                board,
-                rules,
-            ) {
-                update_position(mv, expand.soft_drops);
+            if rules.rot180 {
+                if let Some(mv) = rotate_to(
+                    expand.mv.location,
+                    expand.mv.location.rotation.flip(),
+                    &collision_map,
+                    board,
+                    rules,
+                ) {
+                    update_position(mv, expand.soft_drops);
+                }
             }
         }
     }
 
     locks.extend(underground_locks.drain().map(|(_, value)| value));
-    locks.sort_by_key(|(mv, soft_drops)| (mv.sort_key(), *soft_drops));
+    locks.sort_unstable_by_key(|(mv, soft_drops)| (mv.sort_key(), *soft_drops));
     locks
 }
 
@@ -171,13 +180,14 @@ fn update_position<'a>(
     queue: &'a mut BinaryHeap<Intermediate>,
     values: &'a mut AHashMap<Placement, u32>,
     fast_mode: bool,
-    board: &'a impl BoardRepresentation,
+    collision_map: &'a impl CollisionMap,
 ) -> impl FnMut(Placement, u32) + 'a {
     move |target: Placement, soft_drops: u32| {
-        if fast_mode
-            && (!target.location.horizontally_in_bounds(board)
-                || target.location.above_stack(board))
-        {
+        // Callers only pass positions produced by shift/rotate/drop, all of
+        // which have already passed collision checks. Keeping that invariant
+        // lets this hot path skip a second bounds/obstruction pass.
+        debug_assert!(!collision_map.obstructed(target.location));
+        if fast_mode && collision_map.above_stack(target.location) {
             return;
         }
         let prev_sds = values.entry(target).or_insert(40);
@@ -247,9 +257,18 @@ fn rotate(
             continue;
         }
 
+        let spin = if target.piece != Piece::T
+            && matches!(
+                rules.spin_detection,
+                SpinDetection::None | SpinDetection::TSpins | SpinDetection::TSpinsPlus
+            ) {
+            Spin::None
+        } else {
+            detect_spin(target, board, rules, i)
+        };
         return Some(Placement {
             location: target,
-            spin: detect_spin(target, board, rules, i),
+            spin,
         });
     }
 
