@@ -26,7 +26,7 @@ pub fn evaluate<B: BoardRepresentation>(
             (_, Spin::None, lines) => weights.normal_clears[lines],
             (Piece::T, Spin::Mini, lines) => weights.t_spin_mini_clears[lines],
             (Piece::T, Spin::Full, lines) => weights.t_spin_clears[lines],
-            (_, Spin::Mini, lines) => weights.allspin_mini_clears[lines],
+            (_, Spin::Mini, lines) => weights.allspin_clears[lines],
             (_, Spin::Full, lines) => weights.allspin_clears[lines],
         };
         reward += weights.combo_attack * (info.combo.saturating_sub(1) / 2) as f32;

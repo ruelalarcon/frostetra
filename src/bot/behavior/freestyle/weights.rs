@@ -24,7 +24,6 @@ pub struct Weights {
     pub t_spin_clears: [f32; 4],
     pub t_spin_mini_clears: [f32; 4],
     pub allspin_clears: [f32; 4],
-    pub allspin_mini_clears: [f32; 4],
     pub back_to_back_clear: f32,
     pub combo_attack: f32,
     pub perfect_clear: f32,

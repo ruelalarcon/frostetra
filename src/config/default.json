@@ -35,7 +35,6 @@
         "t_spin_clears": [0.0, 0.25, 5.0, 4.25],
         "t_spin_mini_clears": [0.0, -1.25, -0.75, 1.0],
         "allspin_clears": [0.0, 1.75, 1.15, 0.75],
-        "allspin_mini_clears": [0.0, 1.75, 1.15, 0.75],
         "back_to_back_clear": 1.35,
         "combo_attack": 1.5,
         "perfect_clear": 5.0,
