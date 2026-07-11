@@ -144,7 +144,7 @@ fn bench_search(c: &mut Criterion) {
                     };
                     runner.replace_board(black_box(board));
                     black_box(runner.run_for(SearchBudget::Nodes(black_box(8))));
-                    black_box(runner.suggest());
+                    black_box(runner.suggest(None));
                 }
                 black_box(runner)
             },

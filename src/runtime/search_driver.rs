@@ -8,14 +8,14 @@ use crate::tetris::model::Placement;
 use crate::tetris::movegen::MovegenBoard;
 
 pub(crate) trait SearchRunner {
-    fn suggest(&self) -> Vec<Placement>;
+    fn suggest(&self, incoming_garbage: Option<&[u32]>) -> Vec<Placement>;
     fn step(&self) -> Statistics;
     fn run_for(&self, budget: SearchBudget) -> Statistics;
 }
 
 impl<B: MovegenBoard> SearchRunner for BotRunner<B> {
-    fn suggest(&self) -> Vec<Placement> {
-        BotRunner::suggest(self)
+    fn suggest(&self, incoming_garbage: Option<&[u32]>) -> Vec<Placement> {
+        BotRunner::suggest(self, incoming_garbage)
     }
 
     fn step(&self) -> Statistics {
@@ -69,10 +69,11 @@ impl SearchDriver {
         &self,
         runner: &impl SearchRunner,
         state: &mut SearchState,
+        incoming_garbage: Option<&[u32]>,
     ) -> (Vec<Placement>, SearchInfo) {
         match self {
-            SearchDriver::Background(driver) => driver.suggest(runner, state),
-            SearchDriver::Budgeted(driver) => driver.suggest(runner, state),
+            SearchDriver::Background(driver) => driver.suggest(runner, state, incoming_garbage),
+            SearchDriver::Budgeted(driver) => driver.suggest(runner, state, incoming_garbage),
         }
     }
 }
@@ -87,11 +88,12 @@ impl BackgroundSearchDriver {
         &self,
         runner: &impl SearchRunner,
         state: &mut SearchState,
+        incoming_garbage: Option<&[u32]>,
     ) -> (Vec<Placement>, SearchInfo) {
-        let mut suggestion = runner.suggest();
+        let mut suggestion = runner.suggest(incoming_garbage);
         if suggestion.is_empty() {
             state.accumulate(runner.step());
-            suggestion = runner.suggest();
+            suggestion = runner.suggest(incoming_garbage);
         }
 
         (suggestion, state.search_info())
@@ -108,9 +110,10 @@ impl BudgetedSearchDriver {
         &self,
         runner: &impl SearchRunner,
         state: &mut SearchState,
+        incoming_garbage: Option<&[u32]>,
     ) -> (Vec<Placement>, SearchInfo) {
         state.accumulate(runner.run_for(self.budget));
-        let suggestion = runner.suggest();
+        let suggestion = runner.suggest(incoming_garbage);
         (suggestion, state.search_info())
     }
 }

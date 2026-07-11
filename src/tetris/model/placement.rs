@@ -42,6 +42,7 @@ pub struct PlacementInfo {
     pub placement: Placement,
     pub lines_cleared: u32,
     pub combo: u32,
+    pub back_to_back_before: u32,
     pub back_to_back: u32,
     pub perfect_clear: bool,
 }

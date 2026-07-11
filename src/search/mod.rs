@@ -6,5 +6,5 @@ pub mod rng;
 
 pub use budget::SearchBudget;
 pub use context::SearchContext;
-pub use dag::{ChildData, Dag, Evaluation};
+pub use dag::{ChildData, Dag, Evaluation, RootCandidate};
 pub use rng::SearchRng;

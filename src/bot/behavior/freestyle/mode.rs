@@ -5,10 +5,12 @@ use crate::bot::behavior::freestyle::evaluator::evaluate;
 use crate::bot::behavior::freestyle::score::Eval;
 use crate::bot::behavior::{Behavior, BehaviorSwitch};
 use crate::bot::{BotOptions, Statistics};
-use crate::search::{ChildData, Dag, SearchContext};
+use crate::search::{ChildData, Dag, RootCandidate, SearchContext};
 use crate::tetris::model::{BoardRepresentation, GameState, Piece, Placement};
 use crate::tetris::movegen::find_moves;
 use crate::tetris::movegen::MovegenBoard;
+
+const INCOMING_GARBAGE_SAFE_CENTER_HEIGHT: u32 = 18;
 
 pub struct Freestyle<B: BoardRepresentation> {
     dag: Dag<Eval, B>,
@@ -48,9 +50,18 @@ impl<B: MovegenBoard> Behavior<B> for Freestyle<B> {
         self.dag.add_piece(piece);
     }
 
-    fn suggest(&self, _options: &BotOptions) -> Vec<Placement> {
+    fn suggest(&self, _options: &BotOptions, incoming_garbage: Option<&[u32]>) -> Vec<Placement> {
         puffin::profile_function!();
-        self.dag.suggest()
+        let incoming = match incoming_garbage {
+            Some(incoming) => incoming.iter().sum(),
+            None => return self.dag.suggest(),
+        };
+        if incoming == 0 {
+            return self.dag.suggest();
+        }
+
+        pick_for_incoming(self.dag.root_candidates(), incoming)
+            .map_or_else(Vec::new, |candidate| vec![candidate.mv])
     }
 
     fn step_search(&self, options: &BotOptions, context: &SearchContext) -> Statistics {
@@ -98,6 +109,7 @@ impl<B: MovegenBoard> Behavior<B> for Freestyle<B> {
                         );
 
                         children[next].push(ChildData {
+                            center_height: center_height(&state.board),
                             resulting_state: state,
                             mv,
                             eval,
@@ -115,4 +127,44 @@ impl<B: MovegenBoard> Behavior<B> for Freestyle<B> {
 
         new_stats
     }
+}
+
+fn pick_for_incoming(
+    candidates: Vec<RootCandidate<Eval>>,
+    incoming: u32,
+) -> Option<RootCandidate<Eval>> {
+    let mut backup = None;
+    for candidate in candidates {
+        if candidate
+            .center_height
+            .saturating_add(incoming.saturating_sub(candidate.reward.attack()))
+            <= INCOMING_GARBAGE_SAFE_CENTER_HEIGHT
+        {
+            return Some(candidate);
+        }
+
+        match backup {
+            None => backup = Some(candidate),
+            Some(current) if current.cached_eval.spike() < candidate.cached_eval.spike() => {
+                backup = Some(candidate);
+            }
+            _ => {}
+        }
+    }
+    backup
+}
+
+fn center_height(board: &impl BoardRepresentation) -> u32 {
+    let width = board.width();
+    let start = 3.min(width);
+    let end = 6.min(width);
+    let cols = if start < end {
+        &board.cols()[start..end]
+    } else {
+        board.cols()
+    };
+    cols.iter()
+        .map(|&col| 64 - col.leading_zeros())
+        .max()
+        .unwrap_or(0)
 }

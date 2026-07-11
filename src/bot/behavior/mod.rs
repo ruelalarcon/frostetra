@@ -48,9 +48,13 @@ impl<B: MovegenBoard> BehaviorEnum<B> {
         }
     }
 
-    pub(super) fn suggest(&self, options: &BotOptions) -> Vec<Placement> {
+    pub(super) fn suggest(
+        &self,
+        options: &BotOptions,
+        incoming_garbage: Option<&[u32]>,
+    ) -> Vec<Placement> {
         match self {
-            BehaviorEnum::Freestyle(behavior) => behavior.suggest(options),
+            BehaviorEnum::Freestyle(behavior) => behavior.suggest(options, incoming_garbage),
         }
     }
 
@@ -84,7 +88,7 @@ impl BehaviorKind {
 pub(super) trait Behavior<B: BoardRepresentation> {
     fn advance(&mut self, options: &BotOptions, mv: Placement) -> Option<BehaviorSwitch>;
     fn new_piece(&mut self, options: &BotOptions, piece: Piece);
-    fn suggest(&self, options: &BotOptions) -> Vec<Placement>;
+    fn suggest(&self, options: &BotOptions, incoming_garbage: Option<&[u32]>) -> Vec<Placement>;
     fn step_search(&self, options: &BotOptions, context: &SearchContext) -> Statistics;
 }
 

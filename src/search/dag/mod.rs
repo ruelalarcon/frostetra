@@ -34,6 +34,15 @@ pub struct ChildData<E: Evaluation, B: BoardRepresentation> {
     pub mv: Placement,
     pub eval: E,
     pub reward: E::Reward,
+    pub center_height: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct RootCandidate<E: Evaluation> {
+    pub mv: Placement,
+    pub reward: E::Reward,
+    pub cached_eval: E,
+    pub center_height: u32,
 }
 
 pub(super) struct LayerCommon<E: Evaluation> {
@@ -61,6 +70,7 @@ pub(super) struct Child<E: Evaluation> {
     pub mv: Placement,
     pub reward: E::Reward,
     pub cached_eval: E,
+    pub center_height: u32,
 }
 
 pub(super) enum SelectResult {
@@ -223,6 +233,11 @@ impl<E: Evaluation, B: BoardRepresentation> Dag<E, B> {
     pub fn suggest(&self) -> Vec<Placement> {
         puffin::profile_function!();
         self.top_layer.kind.suggest(&self.root)
+    }
+
+    pub fn root_candidates(&self) -> Vec<RootCandidate<E>> {
+        puffin::profile_function!();
+        self.top_layer.kind.root_candidates(&self.root)
     }
 
     pub fn select(
@@ -415,6 +430,17 @@ impl<E: Evaluation> WithBump<E> {
         self.with(|this| match this.data {
             LayerKind::Known(l) => l.suggest(state),
             LayerKind::Speculated(l) => l.suggest(state),
+        })
+    }
+
+    fn root_candidates(
+        &self,
+        state: &GameState<impl BoardRepresentation>,
+    ) -> Vec<RootCandidate<E>> {
+        puffin::profile_function!();
+        self.with(|this| match this.data {
+            LayerKind::Known(l) => l.root_candidates(state),
+            LayerKind::Speculated(l) => l.root_candidates(state),
         })
     }
 

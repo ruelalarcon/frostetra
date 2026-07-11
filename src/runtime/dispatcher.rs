@@ -126,8 +126,8 @@ async fn handle_frontend_message(
             bot.replace_board(board);
             send_logs(outgoing, bot.drain_logs()).await;
         }
-        FrontendMessage::Suggest { .. } => {
-            if let Some((moves, data)) = bot.suggest() {
+        FrontendMessage::Suggest { incoming_garbage } => {
+            if let Some((moves, data)) = bot.suggest(incoming_garbage.as_deref()) {
                 outgoing
                     .send(BotMessage::Info {
                         topic: "search",

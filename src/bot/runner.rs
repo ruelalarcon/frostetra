@@ -72,9 +72,9 @@ impl<B: MovegenBoard> BotRunner<B> {
         }
     }
 
-    pub fn suggest(&self) -> Vec<Placement> {
+    pub fn suggest(&self, incoming_garbage: Option<&[u32]>) -> Vec<Placement> {
         self.assert_thread_owner();
-        self.bot.suggest()
+        self.bot.suggest(incoming_garbage)
     }
 
     pub fn advance(&mut self, mv: Placement) {

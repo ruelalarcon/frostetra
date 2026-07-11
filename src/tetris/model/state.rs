@@ -29,6 +29,7 @@ impl<B: BoardRepresentation> GameState<B> {
         self.board.place(placement.location);
         let cleared_mask = self.board.line_clears();
         let mut perfect_clear = false;
+        let back_to_back_before = self.back_to_back;
         if cleared_mask != 0 {
             self.board.remove_lines(cleared_mask);
             perfect_clear = self.board.is_empty();
@@ -52,6 +53,7 @@ impl<B: BoardRepresentation> GameState<B> {
             placement,
             lines_cleared: cleared_mask.count_ones(),
             combo: self.combo as u32,
+            back_to_back_before: back_to_back_before as u32,
             back_to_back: self.back_to_back as u32,
             perfect_clear,
         }

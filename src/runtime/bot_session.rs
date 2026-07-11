@@ -54,11 +54,14 @@ impl BotSession {
         self.blocker.notify_all();
     }
 
-    pub fn suggest(&self) -> Option<(Vec<Placement>, SearchInfo)> {
+    pub fn suggest(
+        &self,
+        incoming_garbage: Option<&[u32]>,
+    ) -> Option<(Vec<Placement>, SearchInfo)> {
         let runner = self.runner.read();
         runner.as_ref().map(|runner| {
             let mut state = self.state.lock();
-            self.driver.suggest(runner, &mut state)
+            self.driver.suggest(runner, &mut state, incoming_garbage)
         })
     }
 
@@ -167,10 +170,10 @@ impl BotRunnerInstance {
         }
     }
 
-    fn suggest(&self) -> Vec<Placement> {
+    fn suggest(&self, incoming_garbage: Option<&[u32]>) -> Vec<Placement> {
         match self {
-            BotRunnerInstance::Standard(runner) => runner.suggest(),
-            BotRunnerInstance::Dynamic(runner) => runner.suggest(),
+            BotRunnerInstance::Standard(runner) => runner.suggest(incoming_garbage),
+            BotRunnerInstance::Dynamic(runner) => runner.suggest(incoming_garbage),
         }
     }
 
@@ -234,8 +237,8 @@ impl BotRunnerInstance {
 }
 
 impl SearchRunner for BotRunnerInstance {
-    fn suggest(&self) -> Vec<Placement> {
-        BotRunnerInstance::suggest(self)
+    fn suggest(&self, incoming_garbage: Option<&[u32]>) -> Vec<Placement> {
+        BotRunnerInstance::suggest(self, incoming_garbage)
     }
 
     fn step(&self) -> crate::bot::Statistics {

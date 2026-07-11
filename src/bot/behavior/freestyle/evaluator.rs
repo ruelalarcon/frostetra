@@ -1,20 +1,22 @@
 use crate::bot::behavior::freestyle::features::{board, tslot};
 use crate::bot::behavior::freestyle::score::{Eval, Reward};
 use crate::bot::behavior::freestyle::weights::Weights;
+use crate::tetris::attack::tetrio_s2::TetrioS2AttackCalculator;
 use crate::tetris::model::{BoardRepresentation, GameState, Piece, PlacementInfo, Spin};
 
 pub fn evaluate<B: BoardRepresentation>(
     weights: &Weights,
     state: GameState<B>,
     info: &PlacementInfo,
-    softdrop: u32,
+    move_time: u32,
 ) -> (Eval, Reward) {
+    let highest_point = board::highest_point(&state.board);
     let mut reward = 0.0;
 
     if info.perfect_clear {
         reward += weights.perfect_clear;
     }
-    if !info.perfect_clear || !weights.perfect_clear_override {
+    if weights.stack_pc_damage || !info.perfect_clear {
         if info.lines_cleared != 0 && info.back_to_back > 1 {
             reward += weights.back_to_back_clear;
         }
@@ -29,7 +31,9 @@ pub fn evaluate<B: BoardRepresentation>(
             (_, Spin::Mini, lines) => weights.allspin_clears[lines],
             (_, Spin::Full, lines) => weights.allspin_clears[lines],
         };
-        reward += weights.combo_attack * (info.combo.saturating_sub(1) / 2) as f32;
+        if info.lines_cleared != 0 {
+            reward += weights.combo_garbage * combo_garbage(info.combo.saturating_sub(1)) as f32;
+        }
     }
 
     if info.placement.location.piece == Piece::T
@@ -37,33 +41,28 @@ pub fn evaluate<B: BoardRepresentation>(
     {
         reward += weights.wasted_t;
     }
-    reward += weights.softdrop * softdrop as f32;
+    let move_time = move_time + if info.lines_cleared == 0 { 0 } else { 40 };
+    reward += weights.move_time * move_time as f32;
+    reward += weights.jeopardy
+        * highest_point.saturating_sub(10) as f32
+        * if weights.timed_jeopardy {
+            move_time as f32
+        } else {
+            10.0
+        }
+        / 10.0;
 
     let eval = evaluate_state(weights, state);
 
-    (Eval::new(eval), Reward::new(reward))
+    let attack = TetrioS2AttackCalculator.calculate(info);
+    (
+        Eval::new(eval),
+        Reward::new(reward, (info.lines_cleared > 0).then_some(attack)),
+    )
 }
 
 fn evaluate_state<B: BoardRepresentation>(weights: &Weights, state: GameState<B>) -> f32 {
-    let highest_point = board::highest_point(&state.board);
-    let eval = evaluate_state_without_garbage_pressure(weights, state.clone());
-    let garbage_rows = weights.garbage_pressure_rows;
-    let garbage_weight = weights.garbage_pressure_weight.clamp(0.0, 1.0);
-    if highest_point <= weights.garbage_pressure_activation_height
-        || garbage_rows == 0
-        || garbage_weight == 0.0
-    {
-        return eval;
-    }
-
-    let garbage_eval = garbage_pressure_average(weights, state, garbage_rows);
-    eval * (1.0 - garbage_weight) + garbage_eval * garbage_weight
-}
-
-fn evaluate_state_without_garbage_pressure<B: BoardRepresentation>(
-    weights: &Weights,
-    mut state: GameState<B>,
-) -> f32 {
+    let mut state = state;
     let mut eval = 0.0;
 
     if state.back_to_back > 0 {
@@ -71,9 +70,13 @@ fn evaluate_state_without_garbage_pressure<B: BoardRepresentation>(
         eval += weights.back_to_back_depth * state.back_to_back as f32;
     }
 
-    let cutout_count = state.bag.contains(Piece::T) as usize
-        + (state.reserve == Piece::T) as usize
-        + (state.bag.len() <= 3) as usize;
+    let cutout_count = if weights.use_bag {
+        state.bag.contains(Piece::T) as usize
+            + (state.reserve == Piece::T) as usize
+            + (state.bag.len() <= 3) as usize
+    } else {
+        1 + (state.reserve == Piece::T) as usize
+    };
     for _ in 0..cutout_count {
         let location = match tslot::well_known_tslot(&state.board) {
             Some(v) => v,
@@ -88,58 +91,52 @@ fn evaluate_state_without_garbage_pressure<B: BoardRepresentation>(
         }
     }
 
-    eval += weights.holes * board::holes(&state.board) as f32;
-    eval += weights.cell_coveredness
-        * board::coveredness(&state.board, weights.max_cell_covered_height) as f32;
-    eval += board::tetris_well_depth(&state.board) as f32 * weights.tetris_well_depth;
-
     let highest_point = board::highest_point(&state.board);
     eval += weights.height * highest_point as f32;
     if highest_point > 10 {
-        eval += weights.height_upper_half * (highest_point - 10) as f32;
+        eval += weights.top_half * (highest_point - 10) as f32;
     }
     if highest_point > 15 {
-        eval += weights.height_upper_quarter * (highest_point - 15) as f32;
+        eval += weights.top_quarter * (highest_point - 15) as f32;
     }
 
-    eval += board::row_transitions(&state.board) as f32 * weights.row_transitions;
+    let (well, depth) = board::tetris_well(&state.board);
+    let depth = depth.min(weights.max_well_depth);
+    eval += weights.well_depth * depth as f32;
+    if depth != 0 {
+        eval += weights.well_column[well];
+    }
+
+    let (bumpiness, bumpiness_sq) = board::bumpiness(&state.board, well);
+    eval += weights.bumpiness * bumpiness as f32;
+    eval += weights.bumpiness_sq * bumpiness_sq as f32;
+
+    let (cavity_cells, overhang_cells) = board::cavities_and_overhangs(&state.board);
+    eval += weights.cavity_cells * cavity_cells as f32;
+    eval += weights.cavity_cells_sq * (cavity_cells * cavity_cells) as f32;
+    eval += weights.overhang_cells * overhang_cells as f32;
+    eval += weights.overhang_cells_sq * (overhang_cells * overhang_cells) as f32;
+
+    let (covered_cells, covered_cells_sq) = board::covered_cells(&state.board);
+    eval += weights.covered_cells * covered_cells as f32;
+    eval += weights.covered_cells_sq * covered_cells_sq as f32;
+
+    eval += weights.row_transitions * board::row_transitions(&state.board) as f32;
 
     eval
 }
 
-fn garbage_pressure_average<B: BoardRepresentation>(
-    weights: &Weights,
-    state: GameState<B>,
-    garbage_rows: u32,
-) -> f32 {
-    let width = state.board.width();
-    let sum = (0..width)
-        .map(|hole| {
-            let mut garbage_state = state.clone();
-            insert_garbage(&mut garbage_state.board, garbage_rows, hole);
-            evaluate_state_without_garbage_pressure(weights, garbage_state)
-        })
-        .sum::<f32>();
-    sum / width as f32
-}
-
-fn insert_garbage(board: &mut impl BoardRepresentation, garbage_rows: u32, hole: usize) {
-    let garbage_mask = mask_below(garbage_rows);
-    for (x, col) in board.cols_mut().iter_mut().enumerate() {
-        let shifted = if garbage_rows >= 64 {
-            0
-        } else {
-            *col << garbage_rows
-        };
-        let garbage = if x == hole { 0 } else { garbage_mask };
-        *col = shifted | garbage;
-    }
-}
-
-fn mask_below(height: u32) -> u64 {
-    if height >= 64 {
-        !0
-    } else {
-        (1 << height) - 1
-    }
+fn combo_garbage(combo: u32) -> u32 {
+    const COMBO_GARBAGE: [u32; 12] = [
+        0, 0, // 0, 1 combo
+        1, 1, // 2, 3 combo
+        2, 2, // 4, 5 combo
+        3, 3, // 6, 7 combo
+        4, 4, 4, // 8, 9, 10 combo
+        5, // 11+ combo
+    ];
+    COMBO_GARBAGE
+        .get(combo as usize)
+        .copied()
+        .unwrap_or(*COMBO_GARBAGE.last().unwrap())
 }

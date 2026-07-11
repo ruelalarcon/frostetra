@@ -82,9 +82,9 @@ impl<B: MovegenBoard> Bot<B> {
         self.current.board.width()
     }
 
-    pub fn suggest(&self) -> Vec<Placement> {
+    pub fn suggest(&self, incoming_garbage: Option<&[u32]>) -> Vec<Placement> {
         puffin::profile_function!();
-        self.behavior.suggest(&self.options)
+        self.behavior.suggest(&self.options, incoming_garbage)
     }
 
     pub fn step_search(&self, context: &SearchContext) -> Statistics {

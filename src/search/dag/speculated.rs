@@ -11,7 +11,7 @@ use crate::tetris::model::{BoardRepresentation, GameState, Piece, Placement};
 
 use super::{
     update_child, BackpropUpdate, Child, ChildData, Evaluation, LayerCommon, Parent, Parents,
-    SelectResult,
+    RootCandidate, SelectResult,
 };
 
 #[derive(Default)]
@@ -46,6 +46,17 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
 
     pub fn suggest<B: BoardRepresentation>(&self, state: &GameState<B>) -> Vec<Placement> {
         puffin::profile_function!();
+        self.root_candidates(state)
+            .into_iter()
+            .map(|candidate| candidate.mv)
+            .collect()
+    }
+
+    pub fn root_candidates<B: BoardRepresentation>(
+        &self,
+        state: &GameState<B>,
+    ) -> Vec<RootCandidate<E>> {
+        puffin::profile_function!();
         let node = self.states.get(state).unwrap();
         let children = match &node.children {
             Some(children) => children,
@@ -62,7 +73,15 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
                 .then_with(|| a.mv.sort_key().cmp(&b.mv.sort_key()))
         });
 
-        candidates.into_iter().map(|c| c.mv).collect()
+        candidates
+            .into_iter()
+            .map(|child| RootCandidate {
+                mv: child.mv,
+                reward: child.reward,
+                cached_eval: child.cached_eval,
+                center_height: child.center_height,
+            })
+            .collect()
     }
 
     pub fn select(
@@ -160,6 +179,7 @@ impl<'bump, E: Evaluation> Layer<'bump, E> {
                             mv: child.mv,
                             cached_eval: eval + child.reward,
                             reward: child.reward,
+                            center_height: child.center_height,
                         });
                     },
                 );
